@@ -510,18 +510,22 @@
 
 
 
-  // تنسيق التاريخ إلى:
-  // DD/MM/YYYY
+  // تنسيق التاريخ فقط
+  // بدون تحريك المؤشر بشكل خاطئ
   function formatDate(value) {
 
     value =
       normalizeNumbers(value);
 
-    // السماح فقط بالأرقام و /
+    // السماح بالأرقام والفاصل /
     value =
       value.replace(/[^\d/]/g, "");
 
-    // إزالة الفواصل المكررة
+    // تحويل - إلى /
+    value =
+      value.replace(/-/g, "/");
+
+    // إزالة الفواصل المتكررة
     value =
       value.replace(/\/+/g, "/");
 
@@ -529,10 +533,9 @@
     let digits =
       value.replace(/\//g, "");
 
-    // الحد الأقصى 8 أرقام
+    // DD/MM/YYYY
     digits =
       digits.substring(0, 8);
-
 
 
     // أول رقمين
@@ -541,7 +544,6 @@
       return digits;
 
     }
-
 
 
     // اليوم / الشهر
@@ -554,7 +556,6 @@
       );
 
     }
-
 
 
     // اليوم / الشهر / السنة
@@ -571,10 +572,100 @@
 
 
   /*
+   * حساب عدد الأرقام الموجودة
+   * قبل المؤشر
+   */
+  function countDigitsBefore(
+    value,
+    cursor
+  ) {
+
+    return normalizeNumbers(
+      value.substring(
+        0,
+        cursor
+      )
+    )
+      .replace(/\D/g, "")
+      .length;
+
+  }
+
+
+
+  /*
+   * معرفة مكان المؤشر الجديد
+   * بعد تنسيق التاريخ
+   */
+  function cursorFromDigitCount(
+    formatted,
+    digitCount
+  ) {
+
+    if (digitCount <= 0) {
+
+      return 0;
+
+    }
+
+
+    let count = 0;
+
+
+    for (
+      let i = 0;
+      i < formatted.length;
+      i++
+    ) {
+
+      if (
+        /\d/.test(
+          formatted[i]
+        )
+      ) {
+
+        count++;
+
+      }
+
+
+      if (
+        count >= digitCount
+      ) {
+
+        /*
+         * إذا كان بعد الرقم
+         * فاصل / انقل المؤشر بعده
+         */
+        if (
+          formatted[i + 1] === "/"
+        ) {
+
+          return i + 2;
+
+        }
+
+
+        return i + 1;
+
+      }
+
+    }
+
+
+    return formatted.length;
+
+  }
+
+
+
+  /*
    * الكتابة اليدوية
    *
+   * 1
    * 19
    * 19/
+   * 19/0
    * 19/02
    * 19/02/
    * 19/02/2027
@@ -586,13 +677,30 @@
       const oldValue =
         this.value;
 
+
       const oldCursor =
         this.selectionStart ??
         oldValue.length;
 
 
+      /*
+       * نحسب عدد الأرقام
+       * قبل المؤشر
+       */
+      const digitsBefore =
+        countDigitsBefore(
+          oldValue,
+          oldCursor
+        );
+
+
+      /*
+       * ننسق القيمة
+       */
       const newValue =
-        formatDate(oldValue);
+        formatDate(
+          oldValue
+        );
 
 
       this.value =
@@ -600,37 +708,13 @@
 
 
       /*
-       * إعادة المؤشر إلى مكانه
+       * نرجع المؤشر للمكان
+       * الصحيح
        */
-      let newCursor =
-        oldCursor;
-
-
-      if (
-        newValue.length >
-          oldValue.length
-      ) {
-
-        if (
-          newValue.charAt(
-            oldCursor
-          ) === "/"
-        ) {
-
-          newCursor++;
-
-        }
-
-      }
-
-
-      newCursor =
-        Math.max(
-          0,
-          Math.min(
-            newCursor,
-            newValue.length
-          )
+      const newCursor =
+        cursorFromDigitCount(
+          newValue,
+          digitsBefore
         );
 
 
@@ -663,15 +747,21 @@
           .getData("text");
 
 
+      const formatted =
+        formatDate(
+          pasted
+        );
+
+
       this.value =
-        formatDate(pasted);
+        formatted;
 
 
       try {
 
         this.setSelectionRange(
-          this.value.length,
-          this.value.length
+          formatted.length,
+          formatted.length
         );
 
       } catch (e) {}
@@ -692,9 +782,15 @@
   setInterval(
     function () {
 
+      /*
+       * لا نلمس الحقل أثناء
+       * الكتابة اليدوية.
+       */
       if (
         expiry.value !==
-        lastValue
+        lastValue &&
+        document.activeElement !==
+          expiry
       ) {
 
         const formatted =
