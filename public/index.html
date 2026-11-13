@@ -471,6 +471,285 @@
 
 
 <!-- ================================================= -->
+<!-- حماية ومعالجة حقل التاريخ -->
+<!-- ================================================= -->
+
+<script>
+
+(function () {
+
+  const expiry = document.getElementById("expiry");
+
+  if (!expiry) return;
+
+
+  // تحويل الأرقام العربية والفارسية إلى أرقام إنجليزية
+  function normalizeArabicNumbers(value) {
+
+    return String(value)
+      .replace(/[٠-٩]/g, function (d) {
+        return String("٠١٢٣٤٥٦٧٨٩".indexOf(d));
+      })
+      .replace(/[۰-۹]/g, function (d) {
+        return String("۰۱۲۳۴۵۶۷۸۹".indexOf(d));
+      });
+
+  }
+
+
+  // تنظيف التاريخ مع المحافظة على /
+  function cleanDate(value) {
+
+    value = normalizeArabicNumbers(value);
+
+    // السماح فقط بالأرقام و /
+    value = value.replace(/[^\d/]/g, "");
+
+    // منع أكثر من / متتالية
+    value = value.replace(/\/+/g, "/");
+
+    // الحد الأقصى 10 خانات: 19/02/2027
+    value = value.substring(0, 10);
+
+    return value;
+
+  }
+
+
+  // إضافة الفواصل تلقائياً أثناء الكتابة
+  function formatDate(value) {
+
+    value = cleanDate(value);
+
+    // إذا كتب المستخدم الأرقام بدون فواصل
+    // يتم تحويلها إلى DD/MM/YYYY
+    const digits = value.replace(/\//g, "");
+
+    // إذا كانت 8 أرقام بالضبط
+    // مثال: 19022027
+    if (
+      digits.length === 8 &&
+      value.indexOf("/") === -1
+    ) {
+
+      return (
+        digits.substring(0, 2) +
+        "/" +
+        digits.substring(2, 4) +
+        "/" +
+        digits.substring(4, 8)
+      );
+
+    }
+
+
+    return value;
+
+  }
+
+
+  /*
+   * مهم:
+   * نتحكم بالكتابة من keydown حتى لا يقوم أي كود
+   * آخر بتحويل / إلى أرقام.
+   */
+
+  expiry.addEventListener("keydown", function (event) {
+
+    const allowedKeys = [
+      "Backspace",
+      "Delete",
+      "ArrowLeft",
+      "ArrowRight",
+      "ArrowUp",
+      "ArrowDown",
+      "Tab",
+      "Home",
+      "End"
+    ];
+
+
+    // السماح بالأزرار العادية
+    if (allowedKeys.includes(event.key)) {
+      return;
+    }
+
+
+    // السماح بـ /
+    if (
+      event.key === "/" ||
+      event.key === "-"
+    ) {
+
+      event.preventDefault();
+
+      insertText(event.key === "-" ? "/" : "/");
+
+      return;
+
+    }
+
+
+    // السماح بالأرقام الإنجليزية
+    if (/^[0-9]$/.test(event.key)) {
+
+      event.preventDefault();
+
+      insertText(event.key);
+
+      return;
+
+    }
+
+
+    // السماح بالأرقام العربية
+    if (/^[٠-٩]$/.test(event.key)) {
+
+      event.preventDefault();
+
+      insertText(
+        normalizeArabicNumbers(event.key)
+      );
+
+      return;
+
+    }
+
+
+    // منع أي حروف أخرى
+    event.preventDefault();
+
+  });
+
+
+  function insertText(text) {
+
+    const start = expiry.selectionStart ?? expiry.value.length;
+    const end = expiry.selectionEnd ?? expiry.value.length;
+
+    let value =
+      expiry.value.substring(0, start) +
+      text +
+      expiry.value.substring(end);
+
+    value = cleanDate(value);
+
+    expiry.value = value;
+
+    const newPosition =
+      Math.min(
+        start + text.length,
+        expiry.value.length
+      );
+
+    expiry.setSelectionRange(
+      newPosition,
+      newPosition
+    );
+
+  }
+
+
+  // دعم النسخ واللصق
+  expiry.addEventListener("paste", function (event) {
+
+    event.preventDefault();
+
+    const pasted =
+      event.clipboardData.getData("text");
+
+    const start =
+      expiry.selectionStart ?? expiry.value.length;
+
+    const end =
+      expiry.selectionEnd ?? expiry.value.length;
+
+
+    let value =
+      expiry.value.substring(0, start) +
+      pasted +
+      expiry.value.substring(end);
+
+
+    value = formatDate(value);
+
+    expiry.value = value;
+
+
+    expiry.setSelectionRange(
+      expiry.value.length,
+      expiry.value.length
+    );
+
+  });
+
+
+  /*
+   * إذا جاء التاريخ من OCR أو من كود آخر،
+   * نقوم بتنظيفه بدون حذف الفواصل.
+   */
+  expiry.addEventListener("change", function () {
+
+    expiry.value =
+      formatDate(expiry.value);
+
+  });
+
+
+  /*
+   * دعم إدخال قيمة برمجياً من OCR.
+   * نراقب القيمة فقط عندما تتغير من كود خارجي.
+   */
+  let lastValue = expiry.value;
+
+  setInterval(function () {
+
+    if (
+      document.activeElement !== expiry &&
+      expiry.value !== lastValue
+    ) {
+
+      const cleaned =
+        formatDate(expiry.value);
+
+      if (expiry.value !== cleaned) {
+        expiry.value = cleaned;
+      }
+
+      lastValue = expiry.value;
+
+    }
+
+  }, 150);
+
+
+  // عند إرسال النموذج، تأكد من أن التاريخ نظيف
+  const form =
+    document.getElementById("productForm");
+
+  if (form) {
+
+    form.addEventListener(
+      "submit",
+      function () {
+
+        expiry.value =
+          formatDate(expiry.value);
+
+      },
+      true
+    );
+
+  }
+
+
+})();
+
+</script>
+
+
+
+<!-- ================================================= -->
 <!-- app.js -->
 <!-- ================================================= -->
 
