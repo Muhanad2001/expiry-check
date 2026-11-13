@@ -193,7 +193,7 @@
       <input
         id="expiry"
         type="text"
-        inputmode="numeric"
+        inputmode="text"
         autocomplete="off"
         required
         maxlength="10"
@@ -472,178 +472,273 @@
 
 
 <!-- ================================================= -->
-<!-- معالجة حقل التاريخ -->
+<!-- معالجة حقل تاريخ الانتهاء -->
 <!-- ================================================= -->
 
 <script>
 
 (function () {
 
-  const expiry = document.getElementById("expiry");
+  const expiry =
+    document.getElementById("expiry");
 
   if (!expiry) return;
 
 
-  // تحويل الأرقام العربية والفارسية إلى أرقام إنجليزية
-  function normalizeArabicNumbers(value) {
+
+  // تحويل الأرقام العربية والفارسية
+  // إلى أرقام إنجليزية
+  function normalizeNumbers(value) {
 
     return String(value)
       .replace(/[٠-٩]/g, function (d) {
-        return String("٠١٢٣٤٥٦٧٨٩".indexOf(d));
+
+        return String(
+          "٠١٢٣٤٥٦٧٨٩".indexOf(d)
+        );
+
       })
       .replace(/[۰-۹]/g, function (d) {
-        return String("۰۱۲۳۴۵۶۷۸۹".indexOf(d));
+
+        return String(
+          "۰۱۲۳۴۵۶۷۸۹".indexOf(d)
+        );
+
       });
 
   }
 
 
-  // تنظيف التاريخ مع المحافظة على الفواصل
-  function cleanDate(value) {
 
-    value = normalizeArabicNumbers(value);
-
-    // السماح فقط بالأرقام والفاصل /
-    value = value.replace(/[^\d/]/g, "");
-
-    // منع تكرار الفواصل
-    value = value.replace(/\/+/g, "/");
-
-    // الحد الأقصى لتاريخ DD/MM/YYYY
-    return value.substring(0, 10);
-
-  }
-
-
-  // تنسيق التاريخ
+  // تنسيق التاريخ إلى:
+  // DD/MM/YYYY
   function formatDate(value) {
 
-    value = cleanDate(value);
+    value =
+      normalizeNumbers(value);
 
-    const digits = value.replace(/\//g, "");
+    // السماح فقط بالأرقام و /
+    value =
+      value.replace(/[^\d/]/g, "");
+
+    // إزالة الفواصل المكررة
+    value =
+      value.replace(/\/+/g, "/");
+
+    // استخراج الأرقام فقط
+    let digits =
+      value.replace(/\//g, "");
+
+    // الحد الأقصى 8 أرقام
+    digits =
+      digits.substring(0, 8);
 
 
-    /*
-     * إذا كتب المستخدم 8 أرقام بدون فواصل
-     * مثال:
-     * 19022027
-     *
-     * تتحول إلى:
-     * 19/02/2027
-     */
-    if (
-      digits.length === 8 &&
-      value.indexOf("/") === -1
-    ) {
+
+    // أول رقمين
+    if (digits.length <= 2) {
+
+      return digits;
+
+    }
+
+
+
+    // اليوم / الشهر
+    if (digits.length <= 4) {
 
       return (
         digits.substring(0, 2) +
         "/" +
-        digits.substring(2, 4) +
-        "/" +
-        digits.substring(4, 8)
+        digits.substring(2, 4)
       );
 
     }
 
 
-    return value;
+
+    // اليوم / الشهر / السنة
+    return (
+      digits.substring(0, 2) +
+      "/" +
+      digits.substring(2, 4) +
+      "/" +
+      digits.substring(4, 8)
+    );
 
   }
 
 
 
   /*
-   * عند الكتابة في خانة التاريخ
+   * الكتابة اليدوية
+   *
+   * 19
+   * 19/
+   * 19/02
+   * 19/02/
+   * 19/02/2027
    */
-  expiry.addEventListener("input", function () {
+  expiry.addEventListener(
+    "input",
+    function () {
 
-    let value = normalizeArabicNumbers(this.value);
+      const oldValue =
+        this.value;
 
-    // السماح بالأرقام و /
-    value = value.replace(/[^\d/]/g, "");
+      const oldCursor =
+        this.selectionStart ??
+        oldValue.length;
 
-    // منع تكرار /
-    value = value.replace(/\/+/g, "/");
 
-    /*
-     * إذا كتب المستخدم التاريخ كاملاً بدون /
-     * نحوله تلقائياً.
-     */
-    const digits = value.replace(/\//g, "");
+      const newValue =
+        formatDate(oldValue);
 
-    if (
-      digits.length === 8 &&
-      value.indexOf("/") === -1
-    ) {
 
-      value =
-        digits.substring(0, 2) +
-        "/" +
-        digits.substring(2, 4) +
-        "/" +
-        digits.substring(4, 8);
+      this.value =
+        newValue;
+
+
+      /*
+       * إعادة المؤشر إلى مكانه
+       */
+      let newCursor =
+        oldCursor;
+
+
+      if (
+        newValue.length >
+          oldValue.length
+      ) {
+
+        if (
+          newValue.charAt(
+            oldCursor
+          ) === "/"
+        ) {
+
+          newCursor++;
+
+        }
+
+      }
+
+
+      newCursor =
+        Math.max(
+          0,
+          Math.min(
+            newCursor,
+            newValue.length
+          )
+        );
+
+
+      try {
+
+        this.setSelectionRange(
+          newCursor,
+          newCursor
+        );
+
+      } catch (e) {}
 
     }
-
-    this.value = value.substring(0, 10);
-
-  });
+  );
 
 
 
   /*
-   * دعم النسخ واللصق
+   * النسخ واللصق
    */
-  expiry.addEventListener("paste", function (event) {
+  expiry.addEventListener(
+    "paste",
+    function (event) {
 
-    event.preventDefault();
-
-    let value =
-      event.clipboardData.getData("text");
-
-    value = formatDate(value);
-
-    this.value = value.substring(0, 10);
-
-  });
+      event.preventDefault();
 
 
-
-  /*
-   * عند خروج المستخدم من الخانة
-   */
-  expiry.addEventListener("change", function () {
-
-    this.value =
-      formatDate(this.value);
-
-  });
+      const pasted =
+        event.clipboardData
+          .getData("text");
 
 
+      this.value =
+        formatDate(pasted);
 
-  /*
-   * السماح للكود الآخر مثل OCR
-   * بوضع التاريخ داخل الحقل.
-   */
-  let lastValue = expiry.value;
 
-  setInterval(function () {
+      try {
 
-    if (
-      document.activeElement !== expiry &&
-      expiry.value !== lastValue
-    ) {
+        this.setSelectionRange(
+          this.value.length,
+          this.value.length
+        );
 
-      expiry.value =
-        formatDate(expiry.value);
-
-      lastValue =
-        expiry.value;
+      } catch (e) {}
 
     }
+  );
 
-  }, 200);
+
+
+  /*
+   * إذا قام OCR أو app.js
+   * بوضع التاريخ داخل الحقل
+   */
+  let lastValue =
+    expiry.value;
+
+
+  setInterval(
+    function () {
+
+      if (
+        expiry.value !==
+        lastValue
+      ) {
+
+        const formatted =
+          formatDate(
+            expiry.value
+          );
+
+
+        if (
+          expiry.value !==
+          formatted
+        ) {
+
+          expiry.value =
+            formatted;
+
+        }
+
+
+        lastValue =
+          expiry.value;
+
+      }
+
+    },
+    250
+  );
+
+
+
+  /*
+   * عند الخروج من الحقل
+   */
+  expiry.addEventListener(
+    "blur",
+    function () {
+
+      this.value =
+        formatDate(
+          this.value
+        );
+
+    }
+  );
 
 
 
@@ -651,7 +746,10 @@
    * قبل حفظ المنتج
    */
   const form =
-    document.getElementById("productForm");
+    document.getElementById(
+      "productForm"
+    );
+
 
   if (form) {
 
@@ -660,13 +758,16 @@
       function () {
 
         expiry.value =
-          formatDate(expiry.value);
+          formatDate(
+            expiry.value
+          );
 
       },
       true
     );
 
   }
+
 
 })();
 
