@@ -1,0 +1,18 @@
+name = "expiry-check"
+main = "worker.js"
+compatibility_date = "2026-11-13"
+
+[assets]
+directory = "./public"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "expiry_check_db"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "expiry-check-images"
+
+[triggers]
+crons = ["0 6 * * *"]
