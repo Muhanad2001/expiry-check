@@ -1,15 +1,10 @@
-const $ = (selector) => document.querySelector(selector);
+const $ = (s) => document.querySelector(s);
 
 let products = [];
 let scanner = null;
 let currentLang = "ar";
 
-
-// =========================
-// الترجمة
-// =========================
-
-const translations = {
+const T = {
   ar: {
     subtitle: "إدارة المنتجات وتواريخ الانتهاء",
     total: "إجمالي المنتجات",
@@ -31,23 +26,12 @@ const translations = {
     scan: "📷 مسح Barcode / QR",
     scanTitle: "📷 مسح الباركود / QR",
     scanText: "وجّه الكاميرا نحو الباركود...",
-    ocr: "🔍 قراءة تاريخ الانتهاء من الصورة",
+    ocr: "🔍 قراءة EXP / E من الصورة",
     valid: "صالح",
     soonStatus: "قريب الانتهاء",
     expiredStatus: "منتهي",
     noProducts: "لا توجد منتجات.",
-    deleteConfirm: "هل تريد حذف المنتج؟",
-    found: "تم العثور على المنتج.",
-    barcodeRead: "تمت قراءة الباركود:",
-    ocrReading: "جاري قراءة تاريخ الانتهاء...",
-    ocrDone: "تمت قراءة التاريخ.",
-    ocrFailed: "لم أتمكن من قراءة التاريخ. حاول تصوير التاريخ بوضوح.",
-    saved: "تم حفظ المنتج بنجاح.",
-    updated: "تم تحديث المنتج بنجاح.",
-    deleted: "تم حذف المنتج.",
-    notifications: "🔔 التنبيهات",
-    notificationTitle: "فحص الصلاحية",
-    notificationBody: "سيتم تنبيهك بالمنتجات القريبة من الانتهاء."
+    deleteConfirm: "هل تريد حذف المنتج؟"
   },
 
   en: {
@@ -71,59 +55,32 @@ const translations = {
     scan: "📷 Scan Barcode / QR",
     scanTitle: "📷 Scan Barcode / QR",
     scanText: "Point the camera at the barcode...",
-    ocr: "🔍 Read expiry date from image",
+    ocr: "🔍 Read EXP / E",
     valid: "Valid",
     soonStatus: "Expiring soon",
     expiredStatus: "Expired",
     noProducts: "No products.",
-    deleteConfirm: "Delete this product?",
-    found: "Product found.",
-    barcodeRead: "Barcode detected:",
-    ocrReading: "Reading expiry date...",
-    ocrDone: "Date detected.",
-    ocrFailed: "Could not read the date. Try taking a clearer photo.",
-    saved: "Product saved successfully.",
-    updated: "Product updated successfully.",
-    deleted: "Product deleted.",
-    notifications: "🔔 Notifications",
-    notificationTitle: "Expiry Check",
-    notificationBody: "You will be notified about products nearing expiry."
+    deleteConfirm: "Delete this product?"
   }
 };
 
 
-// =========================
+// =====================================
 // التاريخ
-// =========================
+// =====================================
 
-function today() {
-  const d = new Date();
-  return d.toISOString().slice(0, 10);
+function diffDays(date) {
+  const expiry = new Date(date + "T23:59:59");
+  return Math.ceil((expiry - new Date()) / 86400000);
 }
 
 
-function diffDays(dateString) {
-
-  const expiry = new Date(
-    dateString + "T23:59:59"
-  );
-
-  const now = new Date();
-
-  return Math.ceil(
-    (expiry - now) / 86400000
-  );
-}
-
-
-// =========================
+// =====================================
 // تحميل المنتجات
-// =========================
+// =====================================
 
 async function loadProducts() {
-
   try {
-
     const response = await fetch("/api/products");
 
     if (!response.ok) {
@@ -135,7 +92,6 @@ async function loadProducts() {
     render();
 
   } catch (error) {
-
     console.error(error);
 
     $("#products").innerHTML = `
@@ -147,37 +103,35 @@ async function loadProducts() {
 }
 
 
-// =========================
+// =====================================
 // عرض المنتجات
-// =========================
+// =====================================
 
 function render() {
 
-  const searchValue =
-    $("#search").value.trim().toLowerCase();
+  const search =
+    ($("#search")?.value || "")
+      .trim()
+      .toLowerCase();
 
+  const list = products.filter(p => {
 
-  const filtered = products.filter(product => {
+    const text =
+      `${p.name || ""} ${p.barcode || ""}`
+        .toLowerCase();
 
-    const text = `
-      ${product.name || ""}
-      ${product.barcode || ""}
-    `.toLowerCase();
-
-    return text.includes(searchValue);
+    return text.includes(search);
   });
 
-
-  // الإحصائيات
 
   $("#total").textContent =
     products.length;
 
 
   $("#soon").textContent =
-    products.filter(product => {
+    products.filter(p => {
 
-      const d = diffDays(product.expiry_date);
+      const d = diffDays(p.expiry_date);
 
       return d >= 0 && d <= 5;
 
@@ -185,17 +139,17 @@ function render() {
 
 
   $("#expired").textContent =
-    products.filter(product => {
+    products.filter(p => {
 
-      return diffDays(product.expiry_date) < 0;
+      return diffDays(p.expiry_date) < 0;
 
     }).length;
 
 
   $("#qty").textContent =
     products.reduce(
-      (sum, product) =>
-        sum + Number(product.quantity || 0),
+      (sum, p) =>
+        sum + Number(p.quantity || 0),
       0
     );
 
@@ -203,10 +157,9 @@ function render() {
   // التنبيهات
 
   const soonProducts =
-    products.filter(product => {
+    products.filter(p => {
 
-      const d =
-        diffDays(product.expiry_date);
+      const d = diffDays(p.expiry_date);
 
       return d >= 0 && d <= 5;
 
@@ -216,22 +169,21 @@ function render() {
   if (soonProducts.length) {
 
     $("#alerts").innerHTML =
-      soonProducts.map(product => {
+      soonProducts.map(p => {
 
         const days =
-          diffDays(product.expiry_date);
+          diffDays(p.expiry_date);
 
         return `
           <div class="alert">
-            ⚠️
-            <b>${escapeHTML(product.name)}</b>
-
+            ⚠️ <b>${esc(p.name)}</b>
             —
-            ${days === 0
-              ? "ينتهي اليوم"
-              : `ينتهي خلال ${days} يوم`}
-
-            (${product.expiry_date})
+            ${
+              days === 0
+                ? "ينتهي اليوم"
+                : `ينتهي خلال ${days} يوم`
+            }
+            (${p.expiry_date})
           </div>
         `;
 
@@ -240,71 +192,51 @@ function render() {
   } else {
 
     $("#alerts").innerHTML = "";
-
   }
 
 
-  // المنتجات
-
-  if (!filtered.length) {
+  if (!list.length) {
 
     $("#products").innerHTML =
-      `<p>${translations[currentLang].noProducts}</p>`;
+      `<p>${T[currentLang].noProducts}</p>`;
 
     return;
   }
 
 
   $("#products").innerHTML =
-    filtered.map(productCard).join("");
+    list.map(productCard).join("");
 }
 
 
-// =========================
+// =====================================
 // بطاقة المنتج
-// =========================
+// =====================================
 
-function productCard(product) {
+function productCard(p) {
 
-  const days =
-    diffDays(product.expiry_date);
+  const d =
+    diffDays(p.expiry_date);
 
+  let cls = "ok";
+  let status = T[currentLang].valid;
 
-  let statusClass =
-    "ok";
+  if (d < 0) {
 
-  let statusText =
-    translations[currentLang].valid;
+    cls = "expired";
+    status = T[currentLang].expiredStatus;
 
+  } else if (d <= 5) {
 
-  if (days < 0) {
-
-    statusClass = "expired";
-
-    statusText =
-      translations[currentLang].expiredStatus;
-
-  } else if (days <= 5) {
-
-    statusClass = "soon";
-
-    statusText =
-      translations[currentLang].soonStatus;
+    cls = "soon";
+    status = T[currentLang].soonStatus;
   }
 
 
   const image =
-    product.image_key
-      ? `/images/${encodeURIComponent(product.image_key)}`
-      : `
-        data:image/svg+xml,
-        %3Csvg xmlns='http://www.w3.org/2000/svg'
-        width='100' height='100'%3E
-        %3Crect width='100%25'
-        height='100%25'
-        fill='%23e8edf3'/%3E
-        %3C/svg%3E
-      `;
+    p.image_key
+      ? `/images/${encodeURIComponent(p.image_key)}`
+      : `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect width='100%25' height='100%25' fill='%23e8edf3'/%3E%3C/svg%3E`;
 
 
   return `
@@ -312,29 +244,29 @@ function productCard(product) {
 
       <img
         src="${image}"
-        alt="${escapeHTML(product.name)}">
+        alt="${esc(p.name)}">
 
       <div>
 
         <h3>
-          ${escapeHTML(product.name)}
+          ${esc(p.name)}
         </h3>
 
         <div class="meta">
 
           <span>
-            📦 ${product.quantity}
+            📦 ${p.quantity}
           </span>
 
           <span>
-            📅 ${product.expiry_date}
+            📅 ${p.expiry_date}
           </span>
 
           ${
-            product.barcode
+            p.barcode
               ? `
                 <span>
-                  ▣ ${escapeHTML(product.barcode)}
+                  ▣ ${esc(p.barcode)}
                 </span>
               `
               : ""
@@ -343,10 +275,10 @@ function productCard(product) {
         </div>
 
         ${
-          product.notes
+          p.notes
             ? `
               <p>
-                📝 ${escapeHTML(product.notes)}
+                📝 ${esc(p.notes)}
               </p>
             `
             : ""
@@ -357,10 +289,9 @@ function productCard(product) {
 
       <div>
 
-        <span class="status ${statusClass}">
-          ${statusText}
+        <span class="status ${cls}">
+          ${status}
         </span>
-
 
         <div
           class="actions"
@@ -368,19 +299,14 @@ function productCard(product) {
 
           <button
             class="secondary"
-            onclick="editProduct(${product.id})">
-
+            onclick="editProduct(${p.id})">
             تعديل
-
           </button>
-
 
           <button
             class="secondary"
-            onclick="deleteProduct(${product.id})">
-
+            onclick="deleteProduct(${p.id})">
             حذف
-
           </button>
 
         </div>
@@ -392,48 +318,35 @@ function productCard(product) {
 }
 
 
-// =========================
+// =====================================
 // حماية النص
-// =========================
+// =====================================
 
-function escapeHTML(value) {
+function esc(value) {
 
   return String(value ?? "")
-    .replace(/[&<>"']/g, char => {
-
-      const map = {
-
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;"
-
-      };
-
-      return map[char];
-    });
+    .replace(/[&<>"']/g, c => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    }[c]));
 }
 
 
-// =========================
+// =====================================
 // حفظ المنتج
-// =========================
+// =====================================
 
-$("#productForm")
-  .addEventListener("submit", async event => {
+$("#productForm").addEventListener(
+  "submit",
+  async e => {
 
-    event.preventDefault();
-
+    e.preventDefault();
 
     const id =
       $("#id").value;
-
-
-    let imageKey = null;
-
-
-    // الاحتفاظ بالصورة القديمة عند التعديل
 
     const oldProduct =
       products.find(
@@ -441,49 +354,42 @@ $("#productForm")
       );
 
 
-    if (oldProduct) {
-
-      imageKey =
-        oldProduct.image_key || null;
-
-    }
+    let imageKey =
+      oldProduct?.image_key || null;
 
 
-    // رفع صورة جديدة
+    // رفع الصورة
 
-    const imageFile =
+    const file =
       $("#image").files[0];
 
 
-    if (imageFile) {
+    if (file) {
 
-      const formData =
+      const fd =
         new FormData();
 
-      formData.append(
-        "image",
-        imageFile
-      );
+      fd.append("image", file);
 
 
-      const imageResponse =
+      const response =
         await fetch(
           "/api/images",
           {
             method: "POST",
-            body: formData
+            body: fd
           }
         );
 
 
-      const imageData =
-        await imageResponse.json();
+      const data =
+        await response.json();
 
 
-      if (!imageResponse.ok) {
+      if (!response.ok) {
 
         alert(
-          imageData.error ||
+          data.error ||
           "فشل رفع الصورة"
         );
 
@@ -492,7 +398,7 @@ $("#productForm")
 
 
       imageKey =
-        imageData.key;
+        data.key;
     }
 
 
@@ -502,7 +408,9 @@ $("#productForm")
         $("#name").value.trim(),
 
       quantity:
-        Number($("#quantity").value || 0),
+        Number(
+          $("#quantity").value || 0
+        ),
 
       expiry_date:
         $("#expiry").value,
@@ -535,33 +443,32 @@ $("#productForm")
         : "/api/products";
 
 
-    const method =
-      id ? "PUT" : "POST";
-
-
     const response =
       await fetch(
         url,
         {
-          method,
+          method:
+            id ? "PUT" : "POST",
+
           headers: {
             "content-type":
               "application/json"
           },
+
           body:
             JSON.stringify(body)
         }
       );
 
 
-    const data =
+    const result =
       await response.json();
 
 
     if (!response.ok) {
 
       alert(
-        data.error ||
+        result.error ||
         "حدث خطأ أثناء الحفظ"
       );
 
@@ -571,21 +478,21 @@ $("#productForm")
 
     alert(
       id
-        ? translations[currentLang].updated
-        : translations[currentLang].saved
+        ? "تم تحديث المنتج بنجاح."
+        : "تم حفظ المنتج بنجاح."
     );
 
 
     resetForm();
 
     await loadProducts();
+  }
+);
 
-  });
 
-
-// =========================
-// مسح الحقول
-// =========================
+// =====================================
+// إعادة ضبط الحقول
+// =====================================
 
 function resetForm() {
 
@@ -600,7 +507,7 @@ function resetForm() {
   $("#ocrStatus").textContent = "";
 
   $("#saveBtn").textContent =
-    translations[currentLang].save;
+    T[currentLang].save;
 }
 
 
@@ -611,66 +518,66 @@ $("#resetBtn")
   );
 
 
-// =========================
+// =====================================
 // تعديل المنتج
-// =========================
+// =====================================
 
-window.editProduct = function(id) {
+window.editProduct =
+  function(id) {
 
-  const product =
-    products.find(
-      p => Number(p.id) === Number(id)
-    );
-
-
-  if (!product) return;
+    const p =
+      products.find(
+        x => Number(x.id) === Number(id)
+      );
 
 
-  $("#id").value =
-    product.id;
-
-  $("#name").value =
-    product.name || "";
-
-  $("#quantity").value =
-    product.quantity || 0;
-
-  $("#expiry").value =
-    product.expiry_date || "";
-
-  $("#barcode").value =
-    product.barcode || "";
-
-  $("#notes").value =
-    product.notes || "";
+    if (!p) return;
 
 
-  $("#saveBtn").textContent =
-    currentLang === "ar"
-      ? "💾 تحديث المنتج"
-      : "💾 Update Product";
+    $("#id").value =
+      p.id;
+
+    $("#name").value =
+      p.name || "";
+
+    $("#quantity").value =
+      p.quantity || 0;
+
+    $("#expiry").value =
+      p.expiry_date || "";
+
+    $("#barcode").value =
+      p.barcode || "";
+
+    $("#notes").value =
+      p.notes || "";
 
 
-  window.scrollTo({
-    top: 0,
-    behavior: "smooth"
-  });
-};
+    $("#saveBtn").textContent =
+      currentLang === "ar"
+        ? "💾 تحديث المنتج"
+        : "💾 Update Product";
 
 
-// =========================
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+  };
+
+
+// =====================================
 // حذف المنتج
-// =========================
+// =====================================
 
 window.deleteProduct =
   async function(id) {
 
     if (
       !confirm(
-        translations[currentLang].deleteConfirm
+        T[currentLang].deleteConfirm
       )
     ) {
-
       return;
     }
 
@@ -692,18 +599,13 @@ window.deleteProduct =
     }
 
 
-    alert(
-      translations[currentLang].deleted
-    );
-
-
     await loadProducts();
   };
 
 
-// =========================
+// =====================================
 // البحث
-// =========================
+// =====================================
 
 $("#search")
   .addEventListener(
@@ -712,9 +614,9 @@ $("#search")
   );
 
 
-// =========================
+// =====================================
 // معاينة الصورة
-// =========================
+// =====================================
 
 $("#image")
   .addEventListener(
@@ -727,8 +629,7 @@ $("#image")
 
       if (!file) {
 
-        $("#preview").innerHTML =
-          "";
+        $("#preview").innerHTML = "";
 
         return;
       }
@@ -739,28 +640,26 @@ $("#image")
 
 
       $("#preview").innerHTML = `
-
         <div style="margin-top:10px">
 
           <img
             src="${url}"
             style="
-              max-width:200px;
-              max-height:200px;
+              max-width:220px;
+              max-height:220px;
               border-radius:12px;
               object-fit:cover;
             ">
 
         </div>
-
       `;
     }
   );
 
 
-// =========================
-// مسح Barcode / QR
-// =========================
+// =====================================
+// BARCODE / QR
+// =====================================
 
 $("#scanBtn")
   .addEventListener(
@@ -778,24 +677,28 @@ async function startScanner() {
 
   $("#scanStatus")
     .textContent =
-      translations[currentLang].scanText;
-
-
-  if (scanner) {
-
-    try {
-      await scanner.clear();
-    } catch {}
-
-    scanner = null;
-  }
-
-
-  scanner =
-    new Html5Qrcode("reader");
+      T[currentLang].scanText;
 
 
   try {
+
+    if (scanner) {
+
+      try {
+        await scanner.stop();
+      } catch {}
+
+      try {
+        await scanner.clear();
+      } catch {}
+
+      scanner = null;
+    }
+
+
+    scanner =
+      new Html5Qrcode("reader");
+
 
     await scanner.start(
 
@@ -808,54 +711,93 @@ async function startScanner() {
         fps: 10,
 
         qrbox: {
-          width: 250,
-          height: 150
-        },
-
-        aspectRatio: 1.5
+          width: 280,
+          height: 180
+        }
       },
 
       async decodedText => {
 
+        const barcode =
+          String(decodedText).trim();
+
+
         $("#barcode").value =
-          decodedText;
+          barcode;
 
 
-        const found =
+        $("#scanStatus").textContent =
+          "🔍 جاري البحث عن اسم المنتج...";
+
+
+        // =================================
+        // البحث داخل منتجات الموقع أولاً
+        // =================================
+
+        const local =
           products.find(
-            product =>
-              String(product.barcode) ===
-              String(decodedText)
+            p =>
+              String(p.barcode || "")
+                .trim() === barcode
           );
 
 
-        if (found) {
+        if (local) {
 
-          $("#scanStatus")
-            .textContent =
-              translations[currentLang].found;
+          $("#name").value =
+            local.name || "";
+
+          $("#quantity").value =
+            local.quantity || 1;
+
+          $("#expiry").value =
+            local.expiry_date || "";
+
+          $("#notes").value =
+            local.notes || "";
 
 
-          stopScanner();
+          $("#scanStatus").textContent =
+            "✅ تم العثور على المنتج داخل النظام.";
 
 
-          editProduct(
-            found.id
+          await stopScanner();
+
+          return;
+        }
+
+
+        // =================================
+        // البحث العالمي
+        // =================================
+
+        const product =
+          await findProductByBarcode(
+            barcode
           );
+
+
+        if (product) {
+
+          $("#name").value =
+            product.name;
+
+
+          $("#scanStatus").textContent =
+            `✅ تم العثور على المنتج: ${product.name}`;
 
         } else {
 
-          $("#scanStatus")
-            .textContent =
-              `${translations[currentLang].barcodeRead} ${decodedText}`;
+          $("#scanStatus").textContent =
+            "⚠️ لم يتم العثور على اسم المنتج.";
 
-
-          setTimeout(
-            stopScanner,
-            700
-          );
         }
 
+
+        setTimeout(
+          stopScanner,
+          1000
+        );
       },
 
       () => {}
@@ -866,27 +808,94 @@ async function startScanner() {
 
     console.error(error);
 
-
     $("#scanStatus").textContent =
-      "تعذر تشغيل الكاميرا. تأكد من السماح باستخدام الكاميرا.";
+      "❌ تعذر تشغيل الكاميرا.";
   }
 }
 
 
-// =========================
-// إيقاف الماسح
-// =========================
+// =====================================
+// البحث عن المنتج بالباركود
+// =====================================
+
+async function findProductByBarcode(barcode) {
+
+  try {
+
+    const url =
+      `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json`;
+
+
+    const response =
+      await fetch(url);
+
+
+    if (!response.ok) {
+      return null;
+    }
+
+
+    const data =
+      await response.json();
+
+
+    if (
+      data.status !== 1 ||
+      !data.product
+    ) {
+      return null;
+    }
+
+
+    const p =
+      data.product;
+
+
+    const name =
+      p.product_name_ar ||
+      p.product_name_en ||
+      p.product_name ||
+      p.generic_name_ar ||
+      p.generic_name_en ||
+      p.generic_name ||
+      "";
+
+
+    if (!name.trim()) {
+      return null;
+    }
+
+
+    return {
+      name: name.trim()
+    };
+
+  } catch (error) {
+
+    console.error(
+      "Barcode lookup error:",
+      error
+    );
+
+    return null;
+  }
+}
+
+
+// =====================================
+// إغلاق قارئ الباركود
+// =====================================
 
 async function stopScanner() {
 
   if (scanner) {
 
     try {
-
       await scanner.stop();
+    } catch {}
 
+    try {
       await scanner.clear();
-
     } catch {}
 
     scanner = null;
@@ -906,18 +915,18 @@ $("#closeScan")
   );
 
 
-// =========================
-// قراءة تاريخ الانتهاء OCR
-// =========================
+// =====================================
+// OCR - قراءة EXP / E
+// =====================================
 
 $("#ocrBtn")
   .addEventListener(
     "click",
-    readExpiryFromImage
+    readExpiry
   );
 
 
-async function readExpiryFromImage() {
+async function readExpiry() {
 
   const file =
     $("#image").files[0];
@@ -926,16 +935,15 @@ async function readExpiryFromImage() {
   if (!file) {
 
     alert(
-      "اختر صورة المنتج أولاً."
+      "📷 اختر صورة المنتج أولاً."
     );
 
     return;
   }
 
 
-  $("#ocrStatus")
-    .textContent =
-      translations[currentLang].ocrReading;
+  $("#ocrStatus").textContent =
+    "🔍 جاري البحث عن EXP / E...";
 
 
   try {
@@ -959,9 +967,8 @@ async function readExpiryFromImage() {
                 );
 
 
-              $("#ocrStatus")
-                .textContent =
-                  `جاري قراءة الصورة... ${percent}%`;
+              $("#ocrStatus").textContent =
+                `🔍 قراءة الصورة... ${percent}%`;
             }
           }
         }
@@ -973,90 +980,72 @@ async function readExpiryFromImage() {
 
 
     console.log(
-      "OCR TEXT:",
+      "OCR:",
       text
     );
 
 
-    const date =
-      findExpiryDate(text);
+    const expiry =
+      findExpiry(text);
 
 
-    if (date) {
+    if (expiry) {
 
       $("#expiry").value =
-        date;
+        expiry;
 
 
-      $("#ocrStatus")
-        .textContent =
-          `${translations[currentLang].ocrDone} ${date}`;
+      $("#ocrStatus").textContent =
+        `✅ تم العثور على EXP: ${expiry}`;
 
     } else {
 
-      $("#ocrStatus")
-        .textContent =
-          translations[currentLang].ocrFailed;
-
+      $("#ocrStatus").textContent =
+        "⚠️ لم يتم العثور على EXP أو E. صوّر التاريخ بشكل أقرب.";
     }
 
   } catch (error) {
 
     console.error(error);
 
-
-    $("#ocrStatus")
-      .textContent =
-        translations[currentLang].ocrFailed;
+    $("#ocrStatus").textContent =
+      "❌ فشل قراءة الصورة.";
   }
 }
 
 
-// =========================
-// اكتشاف التاريخ
-// =========================
+// =====================================
+// البحث عن EXP / E
+// =====================================
 
-function findExpiryDate(text) {
+function findExpiry(text) {
 
-  if (!text) return null;
-
-
-  const normalized =
-    text
-      .replace(/[Oo]/g, "0")
-      .replace(/[Il]/g, "1")
-      .replace(/\s+/g, " ");
-
-
-  // YYYY-MM-DD
-
-  let match =
-    normalized.match(
-      /\b(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})\b/
-    );
-
-
-  if (match) {
-
-    return normalizeDate(
-      match[1],
-      match[2],
-      match[3]
-    );
+  if (!text) {
+    return null;
   }
 
 
-  // DD-MM-YYYY
+  let value =
+    text
+      .toUpperCase()
+      .replace(/\s+/g, " ")
+      .trim();
 
-  match =
-    normalized.match(
-      /\b(\d{1,2})[-/.](\d{1,2})[-/.](20\d{2})\b/
+
+  // --------------------------------
+  // EXP 12/08/2027
+  // E 12/08/2027
+  // --------------------------------
+
+  let match =
+    value.match(
+      /(?:EXP|EXPIRY|EX|E)\s*[:\-]?\s*(\d{1,2})[\/.\-](\d{1,2})[\/.\-](20\d{2})/
     );
 
 
   if (match) {
 
-    return normalizeDate(
+    return makeDate(
       match[3],
       match[2],
       match[1]
@@ -1064,17 +1053,20 @@ function findExpiryDate(text) {
   }
 
 
-  // MM/YYYY
+  // --------------------------------
+  // EXP 08/2027
+  // E 08/2027
+  // --------------------------------
 
   match =
-    normalized.match(
-      /\b(\d{1,2})[-/.](20\d{2})\b/
+    value.match(
+      /(?:EXP|EXPIRY|EX|E)\s*[:\-]?\s*(\d{1,2})[\/.\-](20\d{2})/
     );
 
 
   if (match) {
 
-    return normalizeDate(
+    return makeDate(
       match[2],
       match[1],
       1
@@ -1082,18 +1074,40 @@ function findExpiryDate(text) {
   }
 
 
-  // MM/YY
+  // --------------------------------
+  // التاريخ الكامل بدون EXP
+  // --------------------------------
 
   match =
-    normalized.match(
-      /\b(\d{1,2})[-/.](\d{2})\b/
+    value.match(
+      /\b(\d{1,2})[\/.\-](\d{1,2})[\/.\-](20\d{2})\b/
     );
 
 
   if (match) {
 
-    return normalizeDate(
-      "20" + match[2],
+    return makeDate(
+      match[3],
+      match[2],
+      match[1]
+    );
+  }
+
+
+  // --------------------------------
+  // شهر / سنة
+  // --------------------------------
+
+  match =
+    value.match(
+      /\b(\d{1,2})[\/.\-](20\d{2})\b/
+    );
+
+
+  if (match) {
+
+    return makeDate(
+      match[2],
       match[1],
       1
     );
@@ -1104,20 +1118,15 @@ function findExpiryDate(text) {
 }
 
 
-function normalizeDate(
-  year,
-  month,
-  day
-) {
+// =====================================
+// إنشاء التاريخ
+// =====================================
 
-  year =
-    Number(year);
+function makeDate(year, month, day) {
 
-  month =
-    Number(month);
-
-  day =
-    Number(day);
+  year = Number(year);
+  month = Number(month);
+  day = Number(day);
 
 
   if (
@@ -1127,7 +1136,6 @@ function normalizeDate(
     day < 1 ||
     day > 31
   ) {
-
     return null;
   }
 
@@ -1145,22 +1153,17 @@ function normalizeDate(
     date.getMonth() !== month - 1 ||
     date.getDate() !== day
   ) {
-
     return null;
   }
 
 
-  return [
-    year,
-    String(month).padStart(2, "0"),
-    String(day).padStart(2, "0")
-  ].join("-");
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
 
-// =========================
-// طباعة التقرير
-// =========================
+// =====================================
+// الطباعة
+// =====================================
 
 $("#printBtn")
   .addEventListener(
@@ -1172,38 +1175,31 @@ $("#printBtn")
 function printReport() {
 
   const rows =
-    products.map(product => {
+    products.map(p => `
+      <tr>
 
-      return `
-        <tr>
+        <td>
+          ${esc(p.name)}
+        </td>
 
-          <td>
-            ${escapeHTML(product.name)}
-          </td>
+        <td>
+          ${p.quantity}
+        </td>
 
-          <td>
-            ${product.quantity}
-          </td>
+        <td>
+          ${p.expiry_date}
+        </td>
 
-          <td>
-            ${product.expiry_date}
-          </td>
+        <td>
+          ${esc(p.barcode || "")}
+        </td>
 
-          <td>
-            ${escapeHTML(product.barcode || "")}
-          </td>
+        <td>
+          ${esc(p.notes || "")}
+        </td>
 
-          <td>
-            ${
-              product.notes
-                ? escapeHTML(product.notes)
-                : ""
-            }
-          </td>
-
-        </tr>
-      `;
-    }).join("");
+      </tr>
+    `).join("");
 
 
   const win =
@@ -1216,7 +1212,7 @@ function printReport() {
   if (!win) {
 
     alert(
-      "المتصفح منع نافذة الطباعة. اسمح بالنوافذ المنبثقة."
+      "اسمح بالنوافذ المنبثقة للطباعة."
     );
 
     return;
@@ -1224,30 +1220,24 @@ function printReport() {
 
 
   win.document.write(`
-
     <!doctype html>
 
     <html
-      lang="${currentLang}"
-      dir="${currentLang === "ar" ? "rtl" : "ltr"}">
+      lang="ar"
+      dir="rtl">
 
     <head>
 
       <meta charset="utf-8">
 
       <title>
-        ${currentLang === "ar"
-          ? "تقرير المنتجات"
-          : "Products Report"}
+        تقرير فحص الصلاحية
       </title>
 
       <style>
 
         body {
-          font-family:
-            Arial,
-            sans-serif;
-
+          font-family: Arial;
           padding: 30px;
         }
 
@@ -1279,64 +1269,26 @@ function printReport() {
     <body>
 
       <h1>
-        ${
-          currentLang === "ar"
-            ? "تقرير المنتجات — فحص الصلاحية"
-            : "Products Report — Expiry Check"
-        }
+        تقرير المنتجات — فحص الصلاحية
       </h1>
 
       <table>
 
-        <thead>
+        <tr>
 
-          <tr>
+          <th>المنتج</th>
 
-            <th>
-              ${
-                currentLang === "ar"
-                  ? "المنتج"
-                  : "Product"
-              }
-            </th>
+          <th>الكمية</th>
 
-            <th>
-              ${
-                currentLang === "ar"
-                  ? "الكمية"
-                  : "Quantity"
-              }
-            </th>
+          <th>تاريخ الانتهاء</th>
 
-            <th>
-              ${
-                currentLang === "ar"
-                  ? "تاريخ الانتهاء"
-                  : "Expiry date"
-              }
-            </th>
+          <th>الباركود</th>
 
-            <th>
-              Barcode
-            </th>
+          <th>الملاحظات</th>
 
-            <th>
-              ${
-                currentLang === "ar"
-                  ? "ملاحظات"
-                  : "Notes"
-              }
-            </th>
+        </tr>
 
-          </tr>
-
-        </thead>
-
-        <tbody>
-
-          ${rows}
-
-        </tbody>
+        ${rows}
 
       </table>
 
@@ -1349,17 +1301,15 @@ function printReport() {
     </body>
 
     </html>
-
   `);
-
 
   win.document.close();
 }
 
 
-// =========================
+// =====================================
 // التنبيهات
-// =========================
+// =====================================
 
 $("#notifyBtn")
   .addEventListener(
@@ -1387,23 +1337,20 @@ $("#notifyBtn")
       ) {
 
         new Notification(
-          translations[currentLang]
-            .notificationTitle,
+          "فحص الصلاحية",
           {
             body:
-              translations[currentLang]
-                .notificationBody
+              "تم تفعيل تنبيهات المنتجات."
           }
         );
-
       }
     }
   );
 
 
-// =========================
-// اللغة
-// =========================
+// =====================================
+// تغيير اللغة
+// =====================================
 
 $("#langBtn")
   .addEventListener(
@@ -1415,7 +1362,6 @@ $("#langBtn")
           ? "en"
           : "ar";
 
-
       applyLanguage();
     }
   );
@@ -1424,119 +1370,96 @@ $("#langBtn")
 function applyLanguage() {
 
   const t =
-    translations[currentLang];
+    T[currentLang];
 
 
-  document.documentElement
-    .lang =
-      currentLang;
+  document.documentElement.lang =
+    currentLang;
+
+  document.documentElement.dir =
+    currentLang === "ar"
+      ? "rtl"
+      : "ltr";
 
 
-  document.documentElement
-    .dir =
-      currentLang === "ar"
-        ? "rtl"
-        : "ltr";
+  $("#subtitle").textContent =
+    t.subtitle;
 
+  $("#totalLabel").textContent =
+    t.total;
 
-  $("#subtitle")
-    .textContent =
-      t.subtitle;
+  $("#soonLabel").textContent =
+    t.soon;
 
-  $("#totalLabel")
-    .textContent =
-      t.total;
+  $("#expiredLabel").textContent =
+    t.expired;
 
-  $("#soonLabel")
-    .textContent =
-      t.soon;
+  $("#qtyLabel").textContent =
+    t.qty;
 
-  $("#expiredLabel")
-    .textContent =
-      t.expired;
+  $("#addTitle").textContent =
+    t.add;
 
-  $("#qtyLabel")
-    .textContent =
-      t.qty;
+  $("#nameLabel").textContent =
+    t.name;
 
-  $("#addTitle")
-    .textContent =
-      t.add;
+  $("#quantityLabel").textContent =
+    t.quantity;
 
-  $("#nameLabel")
-    .textContent =
-      t.name;
+  $("#expiryLabel").textContent =
+    t.expiry;
 
-  $("#quantityLabel")
-    .textContent =
-      t.quantity;
+  $("#barcodeLabel").textContent =
+    t.barcode;
 
-  $("#expiryLabel")
-    .textContent =
-      t.expiry;
+  $("#imageLabel").textContent =
+    t.image;
 
-  $("#barcodeLabel")
-    .textContent =
-      t.barcode;
+  $("#notesLabel").textContent =
+    t.notes;
 
-  $("#imageLabel")
-    .textContent =
-      t.image;
+  $("#saveBtn").textContent =
+    t.save;
 
-  $("#notesLabel")
-    .textContent =
-      t.notes;
+  $("#resetBtn").textContent =
+    t.reset;
 
-  $("#saveBtn")
-    .textContent =
-      t.save;
+  $("#productsTitle").textContent =
+    t.products;
 
-  $("#resetBtn")
-    .textContent =
-      t.reset;
+  $("#search").placeholder =
+    t.search;
 
-  $("#productsTitle")
-    .textContent =
-      t.products;
+  $("#printBtn").textContent =
+    t.print;
 
-  $("#search")
-    .placeholder =
-      t.search;
+  $("#scanBtn").textContent =
+    t.scan;
 
-  $("#printBtn")
-    .textContent =
-      t.print;
+  $("#scannerTitle").textContent =
+    t.scanTitle;
 
-  $("#scanBtn")
-    .textContent =
-      t.scan;
+  $("#ocrBtn").textContent =
+    t.ocr;
 
-  $("#scannerTitle")
-    .textContent =
-      t.scanTitle;
+  $("#notifyBtn").textContent =
+    currentLang === "ar"
+      ? "🔔 التنبيهات"
+      : "🔔 Notifications";
 
-  $("#ocrBtn")
-    .textContent =
-      t.ocr;
-
-  $("#notifyBtn")
-    .textContent =
-      t.notifications;
-
-  $("#langBtn")
-    .textContent =
-      currentLang === "ar"
-        ? "English"
-        : "العربية";
+  $("#langBtn").textContent =
+    currentLang === "ar"
+      ? "English"
+      : "العربية";
 
 
   render();
 }
 
 
-// =========================
+// =====================================
 // تشغيل الموقع
-// =========================
+// =====================================
 
 applyLanguage();
 
