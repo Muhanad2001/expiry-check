@@ -76,6 +76,8 @@ const T = {
 
 function diffDays(date) {
 
+  if (!date) return 999999;
+
   const expiry =
     new Date(date + "T23:59:59");
 
@@ -109,11 +111,13 @@ async function loadProducts() {
 
     console.error(error);
 
-    $("#products").innerHTML = `
-      <div class="alert">
-        ⚠️ تعذر تحميل المنتجات.
-      </div>
-    `;
+    if ($("#products")) {
+      $("#products").innerHTML = `
+        <div class="alert">
+          ⚠️ تعذر تحميل المنتجات.
+        </div>
+      `;
+    }
   }
 }
 
@@ -141,35 +145,43 @@ function render() {
     });
 
 
-  $("#total").textContent =
-    products.length;
+  if ($("#total")) {
+    $("#total").textContent =
+      products.length;
+  }
 
 
-  $("#soon").textContent =
-    products.filter(p => {
+  if ($("#soon")) {
+    $("#soon").textContent =
+      products.filter(p => {
 
-      const d =
-        diffDays(p.expiry_date);
+        const d =
+          diffDays(p.expiry_date);
 
-      return d >= 0 && d <= 5;
+        return d >= 0 && d <= 5;
 
-    }).length;
-
-
-  $("#expired").textContent =
-    products.filter(p => {
-
-      return diffDays(p.expiry_date) < 0;
-
-    }).length;
+      }).length;
+  }
 
 
-  $("#qty").textContent =
-    products.reduce(
-      (sum, p) =>
-        sum + Number(p.quantity || 0),
-      0
-    );
+  if ($("#expired")) {
+    $("#expired").textContent =
+      products.filter(p => {
+
+        return diffDays(p.expiry_date) < 0;
+
+      }).length;
+  }
+
+
+  if ($("#qty")) {
+    $("#qty").textContent =
+      products.reduce(
+        (sum, p) =>
+          sum + Number(p.quantity || 0),
+        0
+      );
+  }
 
 
   const soonProducts =
@@ -183,47 +195,56 @@ function render() {
     });
 
 
-  if (soonProducts.length) {
+  if ($("#alerts")) {
 
-    $("#alerts").innerHTML =
-      soonProducts.map(p => {
+    if (soonProducts.length) {
 
-        const days =
-          diffDays(p.expiry_date);
+      $("#alerts").innerHTML =
+        soonProducts.map(p => {
 
-        return `
-          <div class="alert">
-            ⚠️
-            <b>${esc(p.name)}</b>
-            —
-            ${
-              days === 0
-                ? "ينتهي اليوم"
-                : `ينتهي خلال ${days} يوم`
-            }
-            (${p.expiry_date})
-          </div>
-        `;
+          const days =
+            diffDays(p.expiry_date);
 
-      }).join("");
+          return `
+            <div class="alert">
+              ⚠️
+              <b>${esc(p.name)}</b>
+              —
+              ${
+                days === 0
+                  ? "ينتهي اليوم"
+                  : `ينتهي خلال ${days} يوم`
+              }
+              (${p.expiry_date})
+            </div>
+          `;
 
-  } else {
+        }).join("");
 
-    $("#alerts").innerHTML = "";
+    } else {
+
+      $("#alerts").innerHTML = "";
+    }
   }
 
 
   if (!list.length) {
 
-    $("#products").innerHTML =
-      `<p>${T[currentLang].noProducts}</p>`;
+    if ($("#products")) {
+
+      $("#products").innerHTML =
+        `<p>${T[currentLang].noProducts}</p>`;
+    }
 
     return;
   }
 
 
-  $("#products").innerHTML =
-    list.map(productCard).join("");
+  if ($("#products")) {
+
+    $("#products").innerHTML =
+      list.map(productCard).join("");
+  }
 }
 
 
@@ -237,6 +258,7 @@ function productCard(p) {
     diffDays(p.expiry_date);
 
   let cls = "ok";
+
   let status =
     T[currentLang].valid;
 
@@ -244,12 +266,14 @@ function productCard(p) {
   if (d < 0) {
 
     cls = "expired";
+
     status =
       T[currentLang].expiredStatus;
 
   } else if (d <= 5) {
 
     cls = "soon";
+
     status =
       T[currentLang].soonStatus;
   }
@@ -296,6 +320,7 @@ function productCard(p) {
 
         </div>
 
+
         ${
           p.notes
             ? `
@@ -315,6 +340,7 @@ function productCard(p) {
           ${status}
         </span>
 
+
         <div
           class="actions"
           style="margin-top:8px">
@@ -324,6 +350,7 @@ function productCard(p) {
             onclick="editProduct(${p.id})">
             تعديل
           </button>
+
 
           <button
             class="secondary"
@@ -361,159 +388,163 @@ function esc(value) {
 // حفظ المنتج
 // =====================================================
 
-$("#productForm")
-  .addEventListener("submit", async e => {
+if ($("#productForm")) {
 
-    e.preventDefault();
+  $("#productForm")
+    .addEventListener("submit", async e => {
 
-    const id =
-      $("#id").value;
+      e.preventDefault();
 
-
-    const oldProduct =
-      products.find(
-        p =>
-          String(p.id) ===
-          String(id)
-      );
+      const id =
+        $("#id").value;
 
 
-    let imageKey =
-      oldProduct?.image_key || null;
-
-
-    const file =
-      $("#image").files[0];
-
-
-    if (file) {
-
-      const fd =
-        new FormData();
-
-      fd.append(
-        "image",
-        file
-      );
-
-
-      const response =
-        await fetch(
-          "/api/images",
-          {
-            method: "POST",
-            body: fd
-          }
+      const oldProduct =
+        products.find(
+          p =>
+            String(p.id) ===
+            String(id)
         );
 
 
-      const data =
-        await response.json();
+      let imageKey =
+        oldProduct?.image_key || null;
 
 
-      if (!response.ok) {
+      const file =
+        $("#image")?.files?.[0];
+
+
+      if (file) {
+
+        const fd =
+          new FormData();
+
+        fd.append(
+          "image",
+          file
+        );
+
+
+        const response =
+          await fetch(
+            "/api/images",
+            {
+              method: "POST",
+              body: fd
+            }
+          );
+
+
+        const data =
+          await response.json();
+
+
+        if (!response.ok) {
+
+          alert(
+            data.error ||
+            "فشل رفع الصورة"
+          );
+
+          return;
+        }
+
+
+        imageKey =
+          data.key;
+      }
+
+
+      const body = {
+
+        name:
+          $("#name").value.trim(),
+
+        quantity:
+          Number(
+            $("#quantity").value || 0
+          ),
+
+        expiry_date:
+          $("#expiry").value,
+
+        barcode:
+          $("#barcode").value.trim(),
+
+        image_key:
+          imageKey,
+
+        notes:
+          $("#notes").value.trim()
+      };
+
+
+      if (
+        !body.name ||
+        !body.expiry_date
+      ) {
 
         alert(
-          data.error ||
-          "فشل رفع الصورة"
+          "اكتب اسم المنتج وتاريخ الانتهاء"
         );
 
         return;
       }
 
 
-      imageKey =
-        data.key;
-    }
+      const url =
+        id
+          ? `/api/products/${id}`
+          : "/api/products";
 
 
-    const body = {
+      const response =
+        await fetch(
+          url,
+          {
+            method:
+              id ? "PUT" : "POST",
 
-      name:
-        $("#name").value.trim(),
+            headers: {
+              "content-type":
+                "application/json"
+            },
 
-      quantity:
-        Number(
-          $("#quantity").value || 0
-        ),
-
-      expiry_date:
-        $("#expiry").value,
-
-      barcode:
-        $("#barcode").value.trim(),
-
-      image_key:
-        imageKey,
-
-      notes:
-        $("#notes").value.trim()
-    };
+            body:
+              JSON.stringify(body)
+          }
+        );
 
 
-    if (
-      !body.name ||
-      !body.expiry_date
-    ) {
+      const result =
+        await response.json();
+
+
+      if (!response.ok) {
+
+        alert(
+          result.error ||
+          "حدث خطأ أثناء الحفظ"
+        );
+
+        return;
+      }
+
 
       alert(
-        "اكتب اسم المنتج وتاريخ الانتهاء"
-      );
-
-      return;
-    }
-
-
-    const url =
-      id
-        ? `/api/products/${id}`
-        : "/api/products";
-
-
-    const response =
-      await fetch(
-        url,
-        {
-          method:
-            id ? "PUT" : "POST",
-
-          headers: {
-            "content-type":
-              "application/json"
-          },
-
-          body:
-            JSON.stringify(body)
-        }
+        id
+          ? "تم تحديث المنتج بنجاح."
+          : "تم حفظ المنتج بنجاح."
       );
 
 
-    const result =
-      await response.json();
+      resetForm();
 
+      await loadProducts();
 
-    if (!response.ok) {
-
-      alert(
-        result.error ||
-        "حدث خطأ أثناء الحفظ"
-      );
-
-      return;
-    }
-
-
-    alert(
-      id
-        ? "تم تحديث المنتج بنجاح."
-        : "تم حفظ المنتج بنجاح."
-    );
-
-
-    resetForm();
-
-    await loadProducts();
-  });
+    });
+}
 
 
 // =====================================================
@@ -522,13 +553,25 @@ $("#productForm")
 
 function resetForm() {
 
-  $("#productForm").reset();
+  if ($("#productForm")) {
+    $("#productForm").reset();
+  }
 
-  $("#id").value = "";
 
-  $("#quantity").value = 1;
+  if ($("#id")) {
+    $("#id").value = "";
+  }
 
-  $("#preview").innerHTML = "";
+
+  if ($("#quantity")) {
+    $("#quantity").value = 1;
+  }
+
+
+  if ($("#preview")) {
+    $("#preview").innerHTML = "";
+  }
+
 
   if ($("#ocrStatus")) {
     $("#ocrStatus").textContent = "";
@@ -536,17 +579,21 @@ function resetForm() {
 
 
   if ($("#saveBtn")) {
+
     $("#saveBtn").textContent =
       T[currentLang].save;
   }
 }
 
 
-$("#resetBtn")
-  .addEventListener(
-    "click",
-    resetForm
-  );
+if ($("#resetBtn")) {
+
+  $("#resetBtn")
+    .addEventListener(
+      "click",
+      resetForm
+    );
+}
 
 
 // =====================================================
@@ -646,79 +693,99 @@ window.deleteProduct =
 // البحث
 // =====================================================
 
-$("#search")
-  .addEventListener(
-    "input",
-    render
-  );
+if ($("#search")) {
+
+  $("#search")
+    .addEventListener(
+      "input",
+      render
+    );
+}
 
 
 // =====================================================
 // معاينة الصورة
 // =====================================================
 
-$("#image")
-  .addEventListener(
-    "change",
-    function () {
+if ($("#image")) {
 
-      const file =
-        this.files[0];
+  $("#image")
+    .addEventListener(
+      "change",
+      function () {
+
+        const file =
+          this.files[0];
 
 
-      if (!file) {
+        if (!file) {
 
-        $("#preview")
-          .innerHTML = "";
+          if ($("#preview")) {
+            $("#preview")
+              .innerHTML = "";
+          }
 
-        return;
+          return;
+        }
+
+
+        const url =
+          URL.createObjectURL(file);
+
+
+        if ($("#preview")) {
+
+          $("#preview").innerHTML = `
+
+            <div style="margin-top:10px">
+
+              <img
+                src="${url}"
+                style="
+                  max-width:220px;
+                  max-height:220px;
+                  border-radius:12px;
+                  object-fit:cover;
+                ">
+
+            </div>
+          `;
+        }
       }
-
-
-      const url =
-        URL.createObjectURL(file);
-
-
-      $("#preview").innerHTML = `
-
-        <div style="margin-top:10px">
-
-          <img
-            src="${url}"
-            style="
-              max-width:220px;
-              max-height:220px;
-              border-radius:12px;
-              object-fit:cover;
-            ">
-
-        </div>
-      `;
-    }
-  );
+    );
+}
 
 
 // =====================================================
 // قارئ BARCODE / QR
 // =====================================================
 
-$("#scanBtn")
-  .addEventListener(
-    "click",
-    startScanner
-  );
+if ($("#scanBtn")) {
+
+  $("#scanBtn")
+    .addEventListener(
+      "click",
+      startScanner
+    );
+}
 
 
 async function startScanner() {
+
+  if (!$("#scanner")) return;
+
 
   $("#scanner")
     .classList
     .remove("hidden");
 
 
-  $("#scanStatus")
-    .textContent =
+  if ($("#scanStatus")) {
+
+    $("#scanStatus")
+      .textContent =
       T[currentLang].scanText;
+  }
 
 
   try {
@@ -772,11 +839,13 @@ async function startScanner() {
           barcode;
 
 
-        $("#scanStatus").textContent =
-          "🔍 جاري البحث عن اسم المنتج...";
+        if ($("#scanStatus")) {
 
+          $("#scanStatus")
+            .textContent =
+            "🔍 جاري البحث عن اسم المنتج...";
+        }
 
-        // البحث داخل موقعك
 
         const local =
           products.find(
@@ -803,8 +872,12 @@ async function startScanner() {
             local.notes || "";
 
 
-          $("#scanStatus").textContent =
-            `✅ تم العثور على المنتج: ${local.name}`;
+          if ($("#scanStatus")) {
+
+            $("#scanStatus")
+              .textContent =
+              `✅ تم العثور على المنتج: ${local.name}`;
+          }
 
 
           await stopScanner();
@@ -812,8 +885,6 @@ async function startScanner() {
           return;
         }
 
-
-        // البحث الخارجي
 
         const product =
           await findProductByBarcode(
@@ -830,14 +901,21 @@ async function startScanner() {
             product.name;
 
 
-          $("#scanStatus").textContent =
-            `✅ اسم المنتج: ${product.name}`;
+          if ($("#scanStatus")) {
+
+            $("#scanStatus")
+              .textContent =
+              `✅ اسم المنتج: ${product.name}`;
+          }
 
         } else {
 
-          $("#scanStatus").textContent =
-            "⚠️ لم يتم العثور على اسم المنتج.";
+          if ($("#scanStatus")) {
 
+            $("#scanStatus")
+              .textContent =
+              "⚠️ لم يتم العثور على اسم المنتج.";
+          }
         }
 
 
@@ -859,8 +937,12 @@ async function startScanner() {
     );
 
 
-    $("#scanStatus").textContent =
-      "❌ تعذر تشغيل الكاميرا. تأكد من السماح باستخدام الكاميرا.";
+    if ($("#scanStatus")) {
+
+      $("#scanStatus")
+        .textContent =
+        "❌ تعذر تشغيل الكاميرا. تأكد من السماح باستخدام الكاميرا.";
+    }
   }
 }
 
@@ -920,7 +1002,8 @@ async function findProductByBarcode(
 
 
     return {
-      name: name.trim()
+      name:
+        name.trim()
     };
 
   } catch (error) {
@@ -955,34 +1038,47 @@ async function stopScanner() {
   }
 
 
-  $("#scanner")
-    .classList
-    .add("hidden");
+  if ($("#scanner")) {
+
+    $("#scanner")
+      .classList
+      .add("hidden");
+  }
 }
 
 
-$("#closeScan")
-  .addEventListener(
-    "click",
-    stopScanner
-  );
+if ($("#closeScan")) {
+
+  $("#closeScan")
+    .addEventListener(
+      "click",
+      stopScanner
+    );
+}
 
 
 // =====================================================
 // OCR
 // =====================================================
 
-$("#ocrBtn")
-  .addEventListener(
-    "click",
-    readExpiry
-  );
+if ($("#ocrBtn")) {
 
+  $("#ocrBtn")
+    .addEventListener(
+      "click",
+      readExpiry
+    );
+}
+
+
+// =====================================================
+// قراءة EXP / E
+// =====================================================
 
 async function readExpiry() {
 
   const file =
-    $("#image").files[0];
+    $("#image")?.files?.[0];
 
 
   if (!file) {
@@ -1008,15 +1104,18 @@ async function readExpiry() {
 
   try {
 
-    // إنشاء عدة صور محسنة
+    /*
+     * نستخدم صورتين فقط.
+     * هذا يقلل الحمل على الآيفون
+     * ويمنع توقف OCR عند 1 من 4.
+     */
+
     const images =
       await createOCRImages(file);
 
 
     let foundDate = null;
 
-
-    // تجربة كل نسخة
 
     for (
       let i = 0;
@@ -1031,55 +1130,42 @@ async function readExpiry() {
       }
 
 
-      const result =
-        await Tesseract.recognize(
-          images[i],
-          "eng",
-          {
-            tessedit_pageseg_mode: "6",
+      try {
 
-            logger:
-              message => {
-
-                if (
-                  message.status ===
-                  "recognizing text"
-                ) {
-
-                  const percent =
-                    Math.round(
-                      (message.progress || 0) *
-                      100
-                    );
+        const result =
+          await recognizeWithTimeout(
+            images[i],
+            30000
+          );
 
 
-                  if (status) {
+        const text =
+          result.data.text || "";
 
-                    status.textContent =
-                      `🔍 قراءة التاريخ... ${percent}%`;
-                  }
-                }
-              }
-          }
+
+        console.log(
+          `OCR IMAGE ${i + 1}:`,
+          text
         );
 
 
-      const text =
-        result.data.text;
+        foundDate =
+          findExpiry(text);
 
 
-      console.log(
-        "OCR RESULT:",
-        text
-      );
+        if (foundDate) {
+          break;
+        }
 
+      } catch (ocrError) {
 
-      foundDate =
-        findExpiry(text);
+        console.warn(
+          `OCR image ${i + 1} failed:`,
+          ocrError
+        );
 
-
-      if (foundDate) {
-        break;
+        // الانتقال للصورة التالية
+        continue;
       }
     }
 
@@ -1093,16 +1179,18 @@ async function readExpiry() {
       if (status) {
 
         status.textContent =
-          `✅ تم العثور على تاريخ الانتهاء: ${foundDate}`;
+          `✅ تم العثور على تاريخ الانتهاء: ${formatDateArabic(foundDate)}`;
       }
 
-    } else {
 
-      if (status) {
+      return;
+    }
 
-        status.textContent =
-          "⚠️ لم يتم العثور على التاريخ. قرّب الكاميرا من سطر E / EXP وصوّر من جديد.";
-      }
+
+    if (status) {
+
+      status.textContent =
+        "⚠️ لم يتم العثور على EXP / E. قرّب الصورة من سطر التاريخ وصوّر مرة أخرى.";
     }
 
   } catch (error) {
@@ -1123,7 +1211,77 @@ async function readExpiry() {
 
 
 // =====================================================
-// إنشاء صور محسنة للـOCR
+// OCR مع مهلة زمنية
+// =====================================================
+
+function recognizeWithTimeout(
+  image,
+  timeout = 30000
+) {
+
+  return Promise.race([
+
+    Tesseract.recognize(
+      image,
+      "eng",
+      {
+
+        tessedit_pageseg_mode:
+          "6",
+
+        logger:
+          message => {
+
+            if (
+              message.status ===
+              "recognizing text"
+            ) {
+
+              const percent =
+                Math.round(
+                  (message.progress || 0) *
+                  100
+                );
+
+
+              const status =
+                $("#ocrStatus");
+
+
+              if (status) {
+
+                status.textContent =
+                  `🔍 قراءة التاريخ... ${percent}%`;
+              }
+            }
+          }
+      }
+    ),
+
+    new Promise(
+      (_, reject) => {
+
+        setTimeout(
+          () => {
+
+            reject(
+              new Error(
+                "OCR timeout"
+              )
+            );
+
+          },
+          timeout
+        );
+      }
+    )
+
+  ]);
+}
+
+
+// =====================================================
+// إنشاء صور OCR
 // =====================================================
 
 async function createOCRImages(file) {
@@ -1135,58 +1293,33 @@ async function createOCRImages(file) {
   const results = [];
 
 
-  // ---------------------------------------------
-  // 1. الصورة كاملة مع تكبير وتحسين
-  // ---------------------------------------------
-
-  results.push(
-    processCanvas(
-      original,
-      1,
-      3
-    )
-  );
-
-
-  // ---------------------------------------------
-  // 2. الجزء الأوسط السفلي
-  // ---------------------------------------------
-
-  results.push(
-    processCrop(
-      original,
-      0.25,
-      0.40,
-      0.75,
-      0.45
-    )
-  );
-
-
-  // ---------------------------------------------
-  // 3. الجزء السفلي
-  // ---------------------------------------------
-
-  results.push(
-    processCrop(
-      original,
-      0.10,
-      0.45,
-      0.90,
-      0.45
-    )
-  );
-
-
-  // ---------------------------------------------
-  // 4. المنطقة الوسطى
-  // ---------------------------------------------
+  /*
+   * الصورة الأولى:
+   * الجزء الذي غالبًا يوجد فيه
+   * سطر EXP / E
+   */
 
   results.push(
     processCrop(
       original,
       0.05,
       0.30,
+      0.90,
+      0.55
+    )
+  );
+
+
+  /*
+   * الصورة الثانية:
+   * الجزء السفلي
+   */
+
+  results.push(
+    processCrop(
+      original,
+      0.05,
+      0.45,
       0.90,
       0.45
     )
@@ -1198,7 +1331,7 @@ async function createOCRImages(file) {
 
 
 // =====================================================
-// تحويل الملف إلى صورة
+// تحويل الملف إلى Image
 // =====================================================
 
 function fileToImage(file) {
@@ -1210,81 +1343,40 @@ function fileToImage(file) {
         new Image();
 
 
+      const url =
+        URL.createObjectURL(file);
+
+
       img.onload =
-        () => resolve(img);
+        () => {
+
+          URL.revokeObjectURL(
+            url
+          );
+
+          resolve(img);
+        };
 
 
       img.onerror =
-        reject;
+        () => {
+
+          URL.revokeObjectURL(
+            url
+          );
+
+          reject(
+            new Error(
+              "تعذر تحميل الصورة"
+            )
+          );
+        };
 
 
       img.src =
-        URL.createObjectURL(file);
+        url;
     }
   );
-}
-
-
-// =====================================================
-// معالجة الصورة كاملة
-// =====================================================
-
-function processCanvas(
-  img,
-  cropScale = 1,
-  upscale = 3
-) {
-
-  const w =
-    img.width * cropScale;
-
-  const h =
-    img.height * cropScale;
-
-
-  const canvas =
-    document.createElement(
-      "canvas"
-    );
-
-
-  canvas.width =
-    Math.max(
-      1200,
-      Math.floor(w * upscale)
-    );
-
-
-  canvas.height =
-    Math.max(
-      900,
-      Math.floor(h * upscale)
-    );
-
-
-  const ctx =
-    canvas.getContext(
-      "2d"
-    );
-
-
-  ctx.drawImage(
-    img,
-    0,
-    0,
-    canvas.width,
-    canvas.height
-  );
-
-
-  improveCanvas(
-    ctx,
-    canvas.width,
-    canvas.height
-  );
-
-
-  return canvas;
 }
 
 
@@ -1321,7 +1413,20 @@ function processCrop(
     );
 
 
-  const scale = 5;
+  /*
+   * لا نرفع الحجم بشكل مبالغ فيه
+   * حتى لا يتجمد الآيفون.
+   */
+
+  const maxWidth =
+    1600;
+
+
+  const scale =
+    Math.min(
+      5,
+      maxWidth / sw
+    );
 
 
   const canvas =
@@ -1331,18 +1436,52 @@ function processCrop(
 
 
   canvas.width =
-    sw * scale;
+    Math.max(
+      800,
+      Math.floor(
+        sw * scale
+      )
+    );
 
 
   canvas.height =
-    sh * scale;
+    Math.max(
+      500,
+      Math.floor(
+        sh * scale
+      )
+    );
 
 
   const ctx =
     canvas.getContext(
-      "2d"
+      "2d",
+      {
+        willReadFrequently:
+          true
+      }
     );
 
+
+  /*
+   * خلفية بيضاء
+   */
+
+  ctx.fillStyle =
+    "#ffffff";
+
+
+  ctx.fillRect(
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+
+
+  /*
+   * رسم الصورة
+   */
 
   ctx.drawImage(
     img,
@@ -1369,7 +1508,7 @@ function processCrop(
 
 
 // =====================================================
-// تحسين التباين والحدة
+// تحسين الصورة
 // =====================================================
 
 function improveCanvas(
@@ -1397,17 +1536,19 @@ function improveCanvas(
     i += 4
   ) {
 
-    let r =
+    const r =
       data[i];
 
-    let g =
+    const g =
       data[i + 1];
 
-    let b =
+    const b =
       data[i + 2];
 
 
-    // تحويل إلى grayscale
+    /*
+     * تحويل إلى أبيض وأسود
+     */
 
     let gray =
       0.299 * r +
@@ -1415,10 +1556,12 @@ function improveCanvas(
       0.114 * b;
 
 
-    // زيادة التباين
+    /*
+     * زيادة التباين
+     */
 
     gray =
-      ((gray - 128) * 1.8) +
+      ((gray - 128) * 1.7) +
       128;
 
 
@@ -1476,14 +1619,14 @@ function findExpiry(text) {
 
 
   // =================================================
-  // E 19 02 27
   // EXP 19 02 27
+  // E 19 02 27
   // E: 19 02 27
   // =================================================
 
   match =
     value.match(
-      /\b(?:EXP|EXPIRY|EX|E)\s*[:\-]?\s*(\d{1,2})\s+(\d{1,2})\s+(\d{2,4})\b/
+      /\b(?:EXP|EXPIRY|EX|E)\s*[:\-]?\s*(\d{1,2})\s+(\d{1,2})\s+(\d{2,4})\b/i
     );
 
 
@@ -1498,13 +1641,13 @@ function findExpiry(text) {
 
 
   // =================================================
-  // E 19/02/27
-  // EXP 19-02-2027
+  // EXP 19/02/27
+  // E 19-02-2027
   // =================================================
 
   match =
     value.match(
-      /\b(?:EXP|EXPIRY|EX|E)\s*[:\-]?\s*(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})\b/
+      /\b(?:EXP|EXPIRY|EX|E)\s*[:\-]?\s*(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})\b/i
     );
 
 
@@ -1519,13 +1662,12 @@ function findExpiry(text) {
 
 
   // =================================================
-  // E 02/2027
   // EXP 02/2027
   // =================================================
 
   match =
     value.match(
-      /\b(?:EXP|EXPIRY|EX|E)\s*[:\-]?\s*(\d{1,2})[\/.\-](20\d{2})\b/
+      /\b(?:EXP|EXPIRY|EX|E)\s*[:\-]?\s*(\d{1,2})[\/.\-](20\d{2})\b/i
     );
 
 
@@ -1539,12 +1681,30 @@ function findExpiry(text) {
   }
 
 
-  // =================================================
-  // التاريخ بدون حرف E
-  //
-  // 19 02 27
-  // 19/02/27
-  // =================================================
+  /*
+   * إذا أخطأ OCR في قراءة E
+   * نبحث عن أي حرف متبوع بالتاريخ
+   */
+
+  match =
+    value.match(
+      /\b[A-Z]\s*(\d{1,2})\s+(\d{1,2})\s+(\d{2,4})\b/
+    );
+
+
+  if (match) {
+
+    return convertDateParts(
+      match[1],
+      match[2],
+      match[3]
+    );
+  }
+
+
+  /*
+   * البحث عن تاريخ بدون EXP
+   */
 
   match =
     value.match(
@@ -1562,6 +1722,10 @@ function findExpiry(text) {
   }
 
 
+  /*
+   * 19/02/27
+   */
+
   match =
     value.match(
       /\b(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})\b/
@@ -1578,12 +1742,9 @@ function findExpiry(text) {
   }
 
 
-  // =================================================
-  // محاولة أخيرة:
-  //
-  // 19 02 27
-  // حتى لو OCR أضاف حروف بين الأرقام
-  // =================================================
+  /*
+   * محاولة أخيرة
+   */
 
   match =
     value.match(
@@ -1606,7 +1767,7 @@ function findExpiry(text) {
 
 
 // =====================================================
-// تنظيف نص OCR
+// تنظيف OCR
 // =====================================================
 
 function normalizeOCRText(text) {
@@ -1614,25 +1775,46 @@ function normalizeOCRText(text) {
   return String(text)
     .toUpperCase()
 
-    // أرقام عربية
-    .replace(/[٠-٩]/g, d =>
-      "٠١٢٣٤٥٦٧٨٩"
-        .indexOf(d)
+    // الأرقام العربية
+    .replace(
+      /[٠-٩]/g,
+      d =>
+        "٠١٢٣٤٥٦٧٨٩".indexOf(d)
     )
 
-    // أخطاء OCR الشائعة
-    .replace(/[Oo]/g, "0")
-    .replace(/[IiLl|]/g, "1")
+    /*
+     * أخطاء OCR الشائعة
+     */
 
-    .replace(/S/g, "5")
+    .replace(
+      /[Oo]/g,
+      "0"
+    )
 
-    .replace(/Z/g, "2")
+    .replace(
+      /[IiLl|]/g,
+      "1"
+    )
 
-    .replace(/B/g, "8")
+    .replace(
+      /S/g,
+      "5"
+    )
 
-    .replace(/[^\w\s\/.\-:]/g, " ")
+    .replace(
+      /Z/g,
+      "2"
+    )
 
-    .replace(/\s+/g, " ")
+    .replace(
+      /[^\w\s\/.\-:]/g,
+      " "
+    )
+
+    .replace(
+      /\s+/g,
+      " "
+    )
 
     .trim();
 }
@@ -1711,14 +1893,9 @@ function makeDate(
 
 
   if (
-    date.getFullYear() !==
-      year ||
-
-    date.getMonth() !==
-      month - 1 ||
-
-    date.getDate() !==
-      day
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
   ) {
 
     return null;
@@ -1734,14 +1911,43 @@ function makeDate(
 
 
 // =====================================================
+// تنسيق التاريخ للعرض
+// =====================================================
+
+function formatDateArabic(date) {
+
+  if (!date) {
+    return "";
+  }
+
+
+  const parts =
+    date.split("-");
+
+
+  if (parts.length !== 3) {
+    return date;
+  }
+
+
+  return (
+    `${parts[2]}/${parts[1]}/${parts[0]}`
+  );
+}
+
+
+// =====================================================
 // الطباعة
 // =====================================================
 
-$("#printBtn")
-  .addEventListener(
-    "click",
-    printReport
-  );
+if ($("#printBtn")) {
+
+  $("#printBtn")
+    .addEventListener(
+      "click",
+      printReport
+    );
+}
 
 
 function printReport() {
@@ -1900,62 +2106,68 @@ function printReport() {
 // التنبيهات
 // =====================================================
 
-$("#notifyBtn")
-  .addEventListener(
-    "click",
-    async () => {
+if ($("#notifyBtn")) {
 
-      if (
-        !("Notification" in window)
-      ) {
+  $("#notifyBtn")
+    .addEventListener(
+      "click",
+      async () => {
 
-        alert(
-          "المتصفح لا يدعم التنبيهات."
-        );
+        if (
+          !("Notification" in window)
+        ) {
 
-        return;
+          alert(
+            "المتصفح لا يدعم التنبيهات."
+          );
+
+          return;
+        }
+
+
+        const permission =
+          await Notification
+            .requestPermission();
+
+
+        if (
+          permission ===
+          "granted"
+        ) {
+
+          new Notification(
+            "فحص الصلاحية",
+            {
+              body:
+                "تم تفعيل تنبيهات المنتجات."
+            }
+          );
+        }
       }
-
-
-      const permission =
-        await Notification
-          .requestPermission();
-
-
-      if (
-        permission ===
-        "granted"
-      ) {
-
-        new Notification(
-          "فحص الصلاحية",
-          {
-            body:
-              "تم تفعيل تنبيهات المنتجات."
-          }
-        );
-      }
-    }
-  );
+    );
+}
 
 
 // =====================================================
 // تغيير اللغة
 // =====================================================
 
-$("#langBtn")
-  .addEventListener(
-    "click",
-    () => {
+if ($("#langBtn")) {
 
-      currentLang =
-        currentLang === "ar"
-          ? "en"
-          : "ar";
+  $("#langBtn")
+    .addEventListener(
+      "click",
+      () => {
 
-      applyLanguage();
-    }
-  );
+        currentLang =
+          currentLang === "ar"
+            ? "en"
+            : "ar";
+
+        applyLanguage();
+      }
+    );
+}
 
 
 function applyLanguage() {
@@ -2054,7 +2266,8 @@ function applyLanguage() {
 
   if ($("#search")) {
 
-    $("#search").placeholder =
+    $("#search")
+      .placeholder =
       t.search;
   }
 
@@ -2082,7 +2295,8 @@ function applyLanguage() {
 
   if ($("#notifyBtn")) {
 
-    $("#notifyBtn").textContent =
+    $("#notifyBtn")
+      .textContent =
       currentLang === "ar"
         ? "🔔 التنبيهات"
         : "🔔 Notifications";
@@ -2091,7 +2305,8 @@ function applyLanguage() {
 
   if ($("#langBtn")) {
 
-    $("#langBtn").textContent =
+    $("#langBtn")
+      .textContent =
       currentLang === "ar"
         ? "English"
         : "العربية";
@@ -2103,7 +2318,7 @@ function applyLanguage() {
 
 
 // =====================================================
-// تعيين نص إذا كان العنصر موجودًا
+// تعيين النص
 // =====================================================
 
 function setText(
