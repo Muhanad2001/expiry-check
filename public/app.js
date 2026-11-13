@@ -1020,49 +1020,79 @@ async function readExpiry() {
 
 function findExpiry(text) {
 
-  if (!text) {
-    return null;
-  }
+  if (!text) return null;
+
+  let value = text
+    .toUpperCase()
+    .replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d))
+    .replace(/O/g, "0")
+    .replace(/I/g, "1")
+    .replace(/L/g, "1")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  console.log("OCR TEXT:", value);
 
 
-  let value =
-    text
-      .toUpperCase()
-      .replace(/\s+/g, " ")
-      .trim();
+  // =================================
+  // E 19 02 27
+  // EXP 19 02 27
+  // E: 19 02 27
+  // =================================
 
-
-  // --------------------------------
-  // EXP 12/08/2027
-  // E 12/08/2027
-  // --------------------------------
-
-  let match =
-    value.match(
-      /(?:EXP|EXPIRY|EX|E)\s*[:\-]?\s*(\d{1,2})[\/.\-](\d{1,2})[\/.\-](20\d{2})/
-    );
-
+  let match = value.match(
+    /(?:EXP|EXPIRY|EX|E)\s*[:\-]?\s*(\d{1,2})\s+(\d{1,2})\s+(\d{2,4})\b/
+  );
 
   if (match) {
 
+    let year = match[3];
+
+    if (year.length === 2) {
+      year = "20" + year;
+    }
+
     return makeDate(
-      match[3],
+      year,
       match[2],
       match[1]
     );
   }
 
 
-  // --------------------------------
-  // EXP 08/2027
-  // E 08/2027
-  // --------------------------------
+  // =================================
+  // E 19/02/27
+  // EXP 19/02/2027
+  // =================================
 
-  match =
-    value.match(
-      /(?:EXP|EXPIRY|EX|E)\s*[:\-]?\s*(\d{1,2})[\/.\-](20\d{2})/
+  match = value.match(
+    /(?:EXP|EXPIRY|EX|E)\s*[:\-]?\s*(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})\b/
+  );
+
+  if (match) {
+
+    let year = match[3];
+
+    if (year.length === 2) {
+      year = "20" + year;
+    }
+
+    return makeDate(
+      year,
+      match[2],
+      match[1]
     );
+  }
 
+
+  // =================================
+  // EXP 02/2027
+  // E 02/2027
+  // =================================
+
+  match = value.match(
+    /(?:EXP|EXPIRY|EX|E)\s*[:\-]?\s*(\d{1,2})[\/.\-](20\d{2})\b/
+  );
 
   if (match) {
 
@@ -1074,47 +1104,33 @@ function findExpiry(text) {
   }
 
 
-  // --------------------------------
-  // التاريخ الكامل بدون EXP
-  // --------------------------------
+  // =================================
+  // إذا OCR لم يقرأ كلمة E
+  // نبحث عن DD MM YY
+  // =================================
 
-  match =
-    value.match(
-      /\b(\d{1,2})[\/.\-](\d{1,2})[\/.\-](20\d{2})\b/
-    );
-
+  match = value.match(
+    /\b(\d{1,2})\s+(\d{1,2})\s+(\d{2,4})\b/
+  );
 
   if (match) {
 
+    let year = match[3];
+
+    if (year.length === 2) {
+      year = "20" + year;
+    }
+
     return makeDate(
-      match[3],
+      year,
       match[2],
       match[1]
-    );
-  }
-
-
-  // --------------------------------
-  // شهر / سنة
-  // --------------------------------
-
-  match =
-    value.match(
-      /\b(\d{1,2})[\/.\-](20\d{2})\b/
-    );
-
-
-  if (match) {
-
-    return makeDate(
-      match[2],
-      match[1],
-      1
     );
   }
 
 
   return null;
+}
 }
 
 
