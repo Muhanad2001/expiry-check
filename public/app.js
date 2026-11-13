@@ -6,68 +6,165 @@ let currentLang = "ar";
 
 
 // =====================================================
-// اللغة
+// الأدوات
 // =====================================================
 
-const T = {
-  ar: {
-    subtitle: "إدارة المنتجات وتواريخ الانتهاء",
-    total: "إجمالي المنتجات",
-    soon: "تنتهي خلال 5 أيام",
-    expired: "منتهية",
-    qty: "إجمالي الكمية",
-    add: "➕ إضافة منتج",
-    name: "اسم المنتج",
-    quantity: "الكمية",
-    expiry: "تاريخ الانتهاء",
-    barcode: "الباركود / QR",
-    image: "صورة المنتج",
-    notes: "ملاحظات",
-    save: "💾 حفظ المنتج",
-    reset: "مسح الحقول",
-    products: "📋 المنتجات",
-    search: "بحث بالاسم أو الباركود",
-    print: "🖨️ طباعة التقرير",
-    scan: "📷 مسح Barcode / QR",
-    scanTitle: "📷 مسح الباركود / QR",
-    scanText: "وجّه الكاميرا نحو الباركود...",
-    ocr: "🔍 قراءة EXP / E من الصورة",
-    valid: "صالح",
-    soonStatus: "قريب الانتهاء",
-    expiredStatus: "منتهي",
-    noProducts: "لا توجد منتجات.",
-    deleteConfirm: "هل تريد حذف المنتج؟"
-  },
+function esc(value) {
+  return String(value ?? "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[c]));
+}
 
-  en: {
-    subtitle: "Manage products and expiry dates",
-    total: "Total products",
-    soon: "Expiring within 5 days",
-    expired: "Expired",
-    qty: "Total quantity",
-    add: "➕ Add Product",
-    name: "Product name",
-    quantity: "Quantity",
-    expiry: "Expiry date",
-    barcode: "Barcode / QR",
-    image: "Product image",
-    notes: "Notes",
-    save: "💾 Save Product",
-    reset: "Clear fields",
-    products: "📋 Products",
-    search: "Search by name or barcode",
-    print: "🖨️ Print report",
-    scan: "📷 Scan Barcode / QR",
-    scanTitle: "📷 Scan Barcode / QR",
-    scanText: "Point the camera at the barcode...",
-    ocr: "🔍 Read EXP / E",
-    valid: "Valid",
-    soonStatus: "Expiring soon",
-    expiredStatus: "Expired",
-    noProducts: "No products.",
-    deleteConfirm: "Delete this product?"
+
+function normalizeArabicNumbers(text) {
+  return String(text || "")
+    .replace(/[٠-٩]/g, d =>
+      "٠١٢٣٤٥٦٧٨٩".indexOf(d)
+    )
+    .replace(/[۰-۹]/g, d =>
+      "۰۱۲۳۴۵۶۷۸۹".indexOf(d)
+    );
+}
+
+
+function cleanDateText(text) {
+  return normalizeArabicNumbers(text)
+    .replace(/[–—−]/g, "-")
+    .replace(/[／]/g, "/")
+    .replace(/[٫]/g, ".")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+
+// =====================================================
+// التاريخ اليدوي
+// =====================================================
+
+function normalizeManualExpiry(value) {
+
+  let v = cleanDateText(value);
+
+  if (!v) return "";
+
+  // 19/02/2027
+  let m = v.match(
+    /^(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{2,4})$/
+  );
+
+  if (m) {
+    let year = Number(m[3]);
+
+    if (String(m[3]).length === 2) {
+      year += 2000;
+    }
+
+    const date = makeDate(year, m[2], m[1]);
+
+    if (date) return date;
   }
-};
+
+
+  // 09/2028
+  m = v.match(
+    /^(\d{1,2})\s*[\/.\-]\s*(20\d{2})$/
+  );
+
+  if (m) {
+
+    const month = Number(m[1]);
+    const year = Number(m[2]);
+
+    if (
+      month >= 1 &&
+      month <= 12
+    ) {
+      return `${year}-${String(month).padStart(2, "0")}-01`;
+    }
+  }
+
+
+  // 2028/09
+  m = v.match(
+    /^(20\d{2})\s*[\/.\-]\s*(\d{1,2})$/
+  );
+
+  if (m) {
+
+    const year = Number(m[1]);
+    const month = Number(m[2]);
+
+    if (
+      month >= 1 &&
+      month <= 12
+    ) {
+      return `${year}-${String(month).padStart(2, "0")}-01`;
+    }
+  }
+
+
+  return null;
+}
+
+
+function displayExpiry(value) {
+
+  if (!value) return "";
+
+  // YYYY-MM-DD
+  let m = String(value).match(
+    /^(\d{4})-(\d{2})-(\d{2})$/
+  );
+
+  if (m) {
+    return `${m[3]}/${m[2]}/${m[1]}`;
+  }
+
+  return value;
+}
+
+
+// =====================================================
+// إنشاء تاريخ
+// =====================================================
+
+function makeDate(year, month, day) {
+
+  year = Number(year);
+  month = Number(month);
+  day = Number(day);
+
+  if (
+    year < 2000 ||
+    year > 2099 ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31
+  ) {
+    return null;
+  }
+
+  const d = new Date(
+    year,
+    month - 1,
+    day
+  );
+
+  if (
+    d.getFullYear() !== year ||
+    d.getMonth() !== month - 1 ||
+    d.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
 
 
 // =====================================================
@@ -76,13 +173,13 @@ const T = {
 
 function diffDays(date) {
 
-  if (!date) return 999999;
+  if (!date) return 99999;
 
-  const expiry =
+  const d =
     new Date(date + "T23:59:59");
 
   return Math.ceil(
-    (expiry - new Date()) / 86400000
+    (d - new Date()) / 86400000
   );
 }
 
@@ -95,28 +192,21 @@ async function loadProducts() {
 
   try {
 
-    const response =
+    const r =
       await fetch("/api/products");
 
-    if (!response.ok) {
-      throw new Error("Failed to load products");
-    }
-
     products =
-      await response.json();
+      await r.json();
 
     render();
 
-  } catch (error) {
+  } catch (e) {
 
-    console.error(error);
+    console.error(e);
 
     if ($("#products")) {
-      $("#products").innerHTML = `
-        <div class="alert">
-          ⚠️ تعذر تحميل المنتجات.
-        </div>
-      `;
+      $("#products").innerHTML =
+        `<div class="alert">⚠️ تعذر تحميل المنتجات.</div>`;
     }
   }
 }
@@ -128,7 +218,9 @@ async function loadProducts() {
 
 function render() {
 
-  const search =
+  if (!$("#products")) return;
+
+  const q =
     ($("#search")?.value || "")
       .trim()
       .toLowerCase();
@@ -141,7 +233,7 @@ function render() {
         `${p.name || ""} ${p.barcode || ""}`
           .toLowerCase();
 
-      return text.includes(search);
+      return text.includes(q);
     });
 
 
@@ -166,11 +258,9 @@ function render() {
 
   if ($("#expired")) {
     $("#expired").textContent =
-      products.filter(p => {
-
-        return diffDays(p.expiry_date) < 0;
-
-      }).length;
+      products.filter(p =>
+        diffDays(p.expiry_date) < 0
+      ).length;
   }
 
 
@@ -184,67 +274,47 @@ function render() {
   }
 
 
-  const soonProducts =
+  const soon =
     products.filter(p => {
 
       const d =
         diffDays(p.expiry_date);
 
       return d >= 0 && d <= 5;
-
     });
 
 
   if ($("#alerts")) {
 
-    if (soonProducts.length) {
+    $("#alerts").innerHTML =
+      soon.length
+        ? soon.map(p => {
 
-      $("#alerts").innerHTML =
-        soonProducts.map(p => {
+            const d =
+              diffDays(p.expiry_date);
 
-          const days =
-            diffDays(p.expiry_date);
+            return `
+              <div class="alert">
+                ⚠️ <b>${esc(p.name)}</b>
+                —
+                ${
+                  d === 0
+                    ? "ينتهي اليوم"
+                    : `ينتهي خلال ${d} يوم`
+                }
+                (${displayExpiry(p.expiry_date)})
+              </div>
+            `;
 
-          return `
-            <div class="alert">
-              ⚠️
-              <b>${esc(p.name)}</b>
-              —
-              ${
-                days === 0
-                  ? "ينتهي اليوم"
-                  : `ينتهي خلال ${days} يوم`
-              }
-              (${p.expiry_date})
-            </div>
-          `;
-
-        }).join("");
-
-    } else {
-
-      $("#alerts").innerHTML = "";
-    }
+          }).join("")
+        : "";
   }
 
 
-  if (!list.length) {
-
-    if ($("#products")) {
-
-      $("#products").innerHTML =
-        `<p>${T[currentLang].noProducts}</p>`;
-    }
-
-    return;
-  }
-
-
-  if ($("#products")) {
-
-    $("#products").innerHTML =
-      list.map(productCard).join("");
-  }
+  $("#products").innerHTML =
+    list.length
+      ? list.map(productCard).join("")
+      : "<p>لا توجد منتجات.</p>";
 }
 
 
@@ -257,25 +327,20 @@ function productCard(p) {
   const d =
     diffDays(p.expiry_date);
 
-  let cls = "ok";
 
-  let status =
-    T[currentLang].valid;
+  let cls = "ok";
+  let status = "صالح";
 
 
   if (d < 0) {
 
     cls = "expired";
-
-    status =
-      T[currentLang].expiredStatus;
+    status = "منتهي";
 
   } else if (d <= 5) {
 
     cls = "soon";
-
-    status =
-      T[currentLang].soonStatus;
+    status = "قريب الانتهاء";
   }
 
 
@@ -305,41 +370,30 @@ function productCard(p) {
           </span>
 
           <span>
-            📅 ${p.expiry_date}
+            📅 ${displayExpiry(p.expiry_date)}
           </span>
 
           ${
             p.barcode
-              ? `
-                <span>
-                  ▣ ${esc(p.barcode)}
-                </span>
-              `
+              ? `<span>▣ ${esc(p.barcode)}</span>`
               : ""
           }
 
         </div>
 
-
         ${
           p.notes
-            ? `
-              <p>
-                📝 ${esc(p.notes)}
-              </p>
-            `
+            ? `<p>📝 ${esc(p.notes)}</p>`
             : ""
         }
 
       </div>
-
 
       <div>
 
         <span class="status ${cls}">
           ${status}
         </span>
-
 
         <div
           class="actions"
@@ -350,7 +404,6 @@ function productCard(p) {
             onclick="editProduct(${p.id})">
             تعديل
           </button>
-
 
           <button
             class="secondary"
@@ -368,236 +421,203 @@ function productCard(p) {
 
 
 // =====================================================
-// حماية النص
-// =====================================================
-
-function esc(value) {
-
-  return String(value ?? "")
-    .replace(/[&<>"']/g, c => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;"
-    }[c]));
-}
-
-
-// =====================================================
 // حفظ المنتج
 // =====================================================
 
-if ($("#productForm")) {
+$("#productForm").addEventListener(
+  "submit",
+  async e => {
 
-  $("#productForm")
-    .addEventListener("submit", async e => {
-
-      e.preventDefault();
-
-      const id =
-        $("#id").value;
+    e.preventDefault();
 
 
-      const oldProduct =
-        products.find(
-          p =>
-            String(p.id) ===
-            String(id)
-        );
+    const id =
+      $("#id").value;
 
 
-      let imageKey =
-        oldProduct?.image_key || null;
+    const rawExpiry =
+      $("#expiry").value.trim();
 
 
-      const file =
-        $("#image")?.files?.[0];
+    const normalizedExpiry =
+      normalizeManualExpiry(
+        rawExpiry
+      );
 
 
-      if (file) {
+    if (!normalizedExpiry) {
 
-        const fd =
-          new FormData();
+      alert(
+        "اكتب تاريخًا صحيحًا مثل:\n19/02/2027\nأو\n09/2028"
+      );
 
-        fd.append(
-          "image",
-          file
-        );
+      $("#expiry").focus();
 
-
-        const response =
-          await fetch(
-            "/api/images",
-            {
-              method: "POST",
-              body: fd
-            }
-          );
+      return;
+    }
 
 
-        const data =
-          await response.json();
+    let imageKey =
+      products.find(
+        p =>
+          String(p.id) ===
+          String(id)
+      )?.image_key || null;
 
 
-        if (!response.ok) {
-
-          alert(
-            data.error ||
-            "فشل رفع الصورة"
-          );
-
-          return;
-        }
+    const file =
+      $("#image")?.files?.[0];
 
 
-        imageKey =
-          data.key;
-      }
+    if (file) {
+
+      const fd =
+        new FormData();
+
+      fd.append(
+        "image",
+        file
+      );
 
 
-      const body = {
-
-        name:
-          $("#name").value.trim(),
-
-        quantity:
-          Number(
-            $("#quantity").value || 0
-          ),
-
-        expiry_date:
-          $("#expiry").value,
-
-        barcode:
-          $("#barcode").value.trim(),
-
-        image_key:
-          imageKey,
-
-        notes:
-          $("#notes").value.trim()
-      };
-
-
-      if (
-        !body.name ||
-        !body.expiry_date
-      ) {
-
-        alert(
-          "اكتب اسم المنتج وتاريخ الانتهاء"
-        );
-
-        return;
-      }
-
-
-      const url =
-        id
-          ? `/api/products/${id}`
-          : "/api/products";
-
-
-      const response =
+      const r =
         await fetch(
-          url,
+          "/api/images",
           {
-            method:
-              id ? "PUT" : "POST",
-
-            headers: {
-              "content-type":
-                "application/json"
-            },
-
-            body:
-              JSON.stringify(body)
+            method: "POST",
+            body: fd
           }
         );
 
 
-      const result =
-        await response.json();
+      const data =
+        await r.json();
 
 
-      if (!response.ok) {
+      if (!r.ok) {
 
         alert(
-          result.error ||
-          "حدث خطأ أثناء الحفظ"
+          data.error ||
+          "فشل رفع الصورة"
         );
 
         return;
       }
 
 
-      alert(
-        id
-          ? "تم تحديث المنتج بنجاح."
-          : "تم حفظ المنتج بنجاح."
+      imageKey =
+        data.key;
+    }
+
+
+    const body = {
+
+      name:
+        $("#name").value.trim(),
+
+      quantity:
+        Number(
+          $("#quantity").value || 0
+        ),
+
+      expiry_date:
+        normalizedExpiry,
+
+      barcode:
+        $("#barcode").value.trim(),
+
+      image_key:
+        imageKey,
+
+      notes:
+        $("#notes").value.trim()
+    };
+
+
+    const url =
+      id
+        ? `/api/products/${id}`
+        : "/api/products";
+
+
+    const r =
+      await fetch(
+        url,
+        {
+          method:
+            id ? "PUT" : "POST",
+
+          headers: {
+            "content-type":
+              "application/json"
+          },
+
+          body:
+            JSON.stringify(body)
+        }
       );
 
 
-      resetForm();
+    const result =
+      await r.json();
 
-      await loadProducts();
 
-    });
-}
+    if (!r.ok) {
+
+      alert(
+        result.error ||
+        "حدث خطأ أثناء الحفظ"
+      );
+
+      return;
+    }
+
+
+    alert(
+      id
+        ? "تم تحديث المنتج بنجاح."
+        : "تم حفظ المنتج بنجاح."
+    );
+
+
+    resetForm();
+
+    await loadProducts();
+  }
+);
 
 
 // =====================================================
-// مسح الحقول
+// مسح
 // =====================================================
 
 function resetForm() {
 
-  if ($("#productForm")) {
-    $("#productForm").reset();
-  }
+  $("#productForm").reset();
 
+  $("#id").value = "";
 
-  if ($("#id")) {
-    $("#id").value = "";
-  }
-
-
-  if ($("#quantity")) {
-    $("#quantity").value = 1;
-  }
-
+  $("#quantity").value = 1;
 
   if ($("#preview")) {
     $("#preview").innerHTML = "";
   }
 
-
   if ($("#ocrStatus")) {
     $("#ocrStatus").textContent = "";
   }
-
-
-  if ($("#saveBtn")) {
-
-    $("#saveBtn").textContent =
-      T[currentLang].save;
-  }
 }
 
 
-if ($("#resetBtn")) {
-
-  $("#resetBtn")
-    .addEventListener(
-      "click",
-      resetForm
-    );
-}
+$("#resetBtn")
+  .addEventListener(
+    "click",
+    resetForm
+  );
 
 
 // =====================================================
-// تعديل المنتج
+// تعديل
 // =====================================================
 
 window.editProduct =
@@ -624,22 +644,15 @@ window.editProduct =
       p.quantity || 0;
 
     $("#expiry").value =
-      p.expiry_date || "";
+      displayExpiry(
+        p.expiry_date
+      );
 
     $("#barcode").value =
       p.barcode || "";
 
     $("#notes").value =
       p.notes || "";
-
-
-    if ($("#saveBtn")) {
-
-      $("#saveBtn").textContent =
-        currentLang === "ar"
-          ? "💾 تحديث المنتج"
-          : "💾 Update Product";
-    }
 
 
     window.scrollTo({
@@ -650,7 +663,7 @@ window.editProduct =
 
 
 // =====================================================
-// حذف المنتج
+// حذف
 // =====================================================
 
 window.deleteProduct =
@@ -658,31 +671,19 @@ window.deleteProduct =
 
     if (
       !confirm(
-        T[currentLang]
-          .deleteConfirm
+        "هل تريد حذف المنتج؟"
       )
     ) {
       return;
     }
 
 
-    const response =
-      await fetch(
-        `/api/products/${id}`,
-        {
-          method: "DELETE"
-        }
-      );
-
-
-    if (!response.ok) {
-
-      alert(
-        "فشل حذف المنتج"
-      );
-
-      return;
-    }
+    await fetch(
+      `/api/products/${id}`,
+      {
+        method: "DELETE"
+      }
+    );
 
 
     await loadProducts();
@@ -720,10 +721,8 @@ if ($("#image")) {
 
         if (!file) {
 
-          if ($("#preview")) {
-            $("#preview")
-              .innerHTML = "";
-          }
+          $("#preview").innerHTML =
+            "";
 
           return;
         }
@@ -733,31 +732,29 @@ if ($("#image")) {
           URL.createObjectURL(file);
 
 
-        if ($("#preview")) {
+        $("#preview").innerHTML = `
 
-          $("#preview").innerHTML = `
+          <div style="margin-top:10px">
 
-            <div style="margin-top:10px">
+            <img
+              src="${url}"
+              style="
+                max-width:260px;
+                max-height:260px;
+                border-radius:14px;
+                object-fit:contain;
+              ">
 
-              <img
-                src="${url}"
-                style="
-                  max-width:220px;
-                  max-height:220px;
-                  border-radius:12px;
-                  object-fit:cover;
-                ">
+          </div>
 
-            </div>
-          `;
-        }
+        `;
       }
     );
 }
 
 
 // =====================================================
-// قارئ BARCODE / QR
+// BARCODE / QR
 // =====================================================
 
 if ($("#scanBtn")) {
@@ -772,37 +769,17 @@ if ($("#scanBtn")) {
 
 async function startScanner() {
 
-  if (!$("#scanner")) return;
-
-
   $("#scanner")
     .classList
     .remove("hidden");
 
 
-  if ($("#scanStatus")) {
-
-    $("#scanStatus")
-      .textContent =
-      T[currentLang].scanText;
-  }
+  $("#scanStatus")
+    .textContent =
+      "وجّه الكاميرا نحو الباركود...";
 
 
   try {
-
-    if (scanner) {
-
-      try {
-        await scanner.stop();
-      } catch {}
-
-      try {
-        await scanner.clear();
-      } catch {}
-
-      scanner = null;
-    }
-
 
     scanner =
       new Html5Qrcode(
@@ -826,7 +803,6 @@ async function startScanner() {
         }
       },
 
-
       async decodedText => {
 
         const barcode =
@@ -839,12 +815,8 @@ async function startScanner() {
           barcode;
 
 
-        if ($("#scanStatus")) {
-
-          $("#scanStatus")
-            .textContent =
-            "🔍 جاري البحث عن اسم المنتج...";
-        }
+        $("#scanStatus").textContent =
+          "🔍 جاري البحث عن اسم المنتج...";
 
 
         const local =
@@ -866,19 +838,16 @@ async function startScanner() {
             local.quantity || 1;
 
           $("#expiry").value =
-            local.expiry_date || "";
+            displayExpiry(
+              local.expiry_date
+            );
 
           $("#notes").value =
             local.notes || "";
 
 
-          if ($("#scanStatus")) {
-
-            $("#scanStatus")
-              .textContent =
-              `✅ تم العثور على المنتج: ${local.name}`;
-          }
-
+          $("#scanStatus").textContent =
+            `✅ تم العثور على المنتج: ${local.name}`;
 
           await stopScanner();
 
@@ -886,36 +855,29 @@ async function startScanner() {
         }
 
 
-        const product =
+        const external =
           await findProductByBarcode(
             barcode
           );
 
 
         if (
-          product &&
-          product.name
+          external &&
+          external.name
         ) {
 
           $("#name").value =
-            product.name;
+            external.name;
 
 
-          if ($("#scanStatus")) {
-
-            $("#scanStatus")
-              .textContent =
-              `✅ اسم المنتج: ${product.name}`;
-          }
+          $("#scanStatus").textContent =
+            `✅ اسم المنتج: ${external.name}`;
 
         } else {
 
-          if ($("#scanStatus")) {
+          $("#scanStatus").textContent =
+            "⚠️ تم قراءة الباركود، لكن لم يتم العثور على اسم المنتج.";
 
-            $("#scanStatus")
-              .textContent =
-              "⚠️ لم يتم العثور على اسم المنتج.";
-          }
         }
 
 
@@ -925,53 +887,35 @@ async function startScanner() {
         );
       },
 
-
       () => {}
 
     );
 
-  } catch (error) {
+  } catch (e) {
 
-    console.error(
-      error
-    );
+    console.error(e);
 
-
-    if ($("#scanStatus")) {
-
-      $("#scanStatus")
-        .textContent =
-        "❌ تعذر تشغيل الكاميرا. تأكد من السماح باستخدام الكاميرا.";
-    }
+    $("#scanStatus").textContent =
+      "❌ تعذر تشغيل الكاميرا.";
   }
 }
 
 
-// =====================================================
-// البحث عن اسم المنتج بالباركود
-// =====================================================
-
-async function findProductByBarcode(
-  barcode
-) {
+async function findProductByBarcode(barcode) {
 
   try {
 
-    const url =
-      `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json`;
+    const r =
+      await fetch(
+        `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json`
+      );
 
 
-    const response =
-      await fetch(url);
-
-
-    if (!response.ok) {
-      return null;
-    }
+    if (!r.ok) return null;
 
 
     const data =
-      await response.json();
+      await r.json();
 
 
     if (
@@ -986,41 +930,24 @@ async function findProductByBarcode(
       data.product;
 
 
-    const name =
-      p.product_name_ar ||
-      p.product_name_en ||
-      p.product_name ||
-      p.generic_name_ar ||
-      p.generic_name_en ||
-      p.generic_name ||
-      "";
-
-
-    if (!name.trim()) {
-      return null;
-    }
-
-
     return {
+
       name:
-        name.trim()
+        p.product_name_ar ||
+        p.product_name_en ||
+        p.product_name ||
+        p.generic_name_ar ||
+        p.generic_name_en ||
+        p.generic_name ||
+        ""
     };
 
-  } catch (error) {
-
-    console.error(
-      "Barcode lookup error:",
-      error
-    );
+  } catch {
 
     return null;
   }
 }
 
-
-// =====================================================
-// إغلاق قارئ الباركود
-// =====================================================
 
 async function stopScanner() {
 
@@ -1038,12 +965,9 @@ async function stopScanner() {
   }
 
 
-  if ($("#scanner")) {
-
-    $("#scanner")
-      .classList
-      .add("hidden");
-  }
+  $("#scanner")
+    .classList
+    .add("hidden");
 }
 
 
@@ -1058,443 +982,1049 @@ if ($("#closeScan")) {
 
 
 // =====================================================
-// OCR
+// OCR — فتح أداة تحديد منطقة EXP/E
 // =====================================================
 
 if ($("#ocrBtn")) {
-  $("#ocrBtn").addEventListener("click", readExpiry);
+
+  $("#ocrBtn")
+    .addEventListener(
+      "click",
+      openCropOCR
+    );
 }
 
-// =====================================================
-// قراءة تاريخ EXP / E
-// يدعم:
-// EXP 19/02/27
-// EXP 19/02/2027
-// EXP 2027/02/19
-// EXP: 19-02-2027
-// EXPIRY DATE: 19.02.2027
-// E 04/2025
-// E: 06.2015
-// =====================================================
 
-async function readExpiry() {
-  const file = $("#image")?.files?.[0];
+function openCropOCR() {
+
+  const file =
+    $("#image")?.files?.[0];
+
 
   if (!file) {
-    alert("📷 اختر صورة المنتج أولاً.");
+
+    alert(
+      "📷 اختر صورة المنتج أولاً."
+    );
+
     return;
   }
 
-  const status = $("#ocrStatus");
 
-  if (status) {
-    status.textContent = "🔍 جاري تجهيز الصورة...";
+  const old =
+    document.getElementById(
+      "ocrCropModal"
+    );
+
+  if (old) {
+    old.remove();
   }
 
-  try {
-    const images = await createOCRImages(file);
-    let foundDate = null;
 
-    for (let i = 0; i < images.length; i++) {
-      if (status) {
-        status.textContent =
-          `🔍 قراءة الصورة ${i + 1} من ${images.length}...`;
-      }
+  const url =
+    URL.createObjectURL(file);
 
-      try {
-        const result = await recognizeWithTimeout(images[i], 30000);
-        const ocrText = result?.data?.text || "";
 
-        console.log(`OCR IMAGE ${i + 1}:`, ocrText);
+  const modal =
+    document.createElement(
+      "div"
+    );
 
-        foundDate = findExpiry(ocrText);
 
-        if (foundDate) {
-          break;
-        }
-      } catch (ocrError) {
-        console.warn(`OCR image ${i + 1} failed:`, ocrError);
-      }
-    }
+  modal.id =
+    "ocrCropModal";
 
-    if (foundDate) {
-      $("#expiry").value = foundDate;
 
-      if (status) {
-        status.textContent =
-          `✅ تم العثور على تاريخ الانتهاء: ${formatDateArabic(foundDate)}`;
-      }
+  modal.style.cssText = `
+    position:fixed;
+    inset:0;
+    z-index:99999;
+    background:rgba(0,0,0,.88);
+    display:flex;
+    flex-direction:column;
+    padding:15px;
+    box-sizing:border-box;
+  `;
 
-      return;
-    }
 
-    if (status) {
-      status.textContent =
-        "⚠️ لم يتم العثور على EXP / E. قرّب الصورة من سطر التاريخ وصوّر مرة أخرى.";
-    }
-  } catch (error) {
-    console.error("OCR ERROR:", error);
+  modal.innerHTML = `
 
-    if (status) {
-      status.textContent = "❌ حدث خطأ أثناء قراءة الصورة.";
-    }
-  }
+    <div style="
+      color:white;
+      text-align:center;
+      font-size:18px;
+      font-weight:bold;
+      margin:8px 0 12px;
+    ">
+      حدد سطر EXP / E بإصبعك
+    </div>
+
+
+    <div style="
+      color:#ddd;
+      text-align:center;
+      font-size:14px;
+      margin-bottom:10px;
+    ">
+      كبّر الصورة بإصبعين ثم حدد المنطقة التي تحتوي على التاريخ
+    </div>
+
+
+    <div
+      id="cropArea"
+      style="
+        position:relative;
+        flex:1;
+        min-height:0;
+        overflow:hidden;
+        background:#111;
+        border-radius:14px;
+        touch-action:none;
+      ">
+
+      <img
+        id="ocrSourceImage"
+        src="${url}"
+        style="
+          position:absolute;
+          left:0;
+          top:0;
+          width:100%;
+          height:100%;
+          object-fit:contain;
+          touch-action:none;
+          user-select:none;
+        ">
+
+      <div
+        id="selectionBox"
+        style="
+          position:absolute;
+          display:none;
+          border:3px solid #00ff88;
+          background:rgba(0,255,136,.12);
+          box-sizing:border-box;
+          pointer-events:none;
+        ">
+      </div>
+
+    </div>
+
+
+    <div style="
+      display:flex;
+      gap:10px;
+      margin-top:12px;
+    ">
+
+      <button
+        id="cropCancel"
+        style="
+          flex:1;
+          padding:14px;
+          border:0;
+          border-radius:12px;
+          background:#444;
+          color:white;
+          font-size:17px;
+          font-weight:bold;
+        ">
+        إلغاء
+      </button>
+
+
+      <button
+        id="cropRead"
+        style="
+          flex:1;
+          padding:14px;
+          border:0;
+          border-radius:12px;
+          background:#0b1324;
+          color:white;
+          font-size:17px;
+          font-weight:bold;
+        ">
+        🔍 قراءة التاريخ
+      </button>
+
+    </div>
+
+  `;
+
+
+  document.body.appendChild(
+    modal
+  );
+
+
+  setupCropSelection(
+    modal,
+    url
+  );
 }
 
-// =====================================================
-// OCR مع مهلة زمنية
-// =====================================================
-
-function recognizeWithTimeout(image, timeout = 30000) {
-  return Promise.race([
-    Tesseract.recognize(image, "eng", {
-      tessedit_pageseg_mode: "6",
-      logger: message => {
-        if (message.status === "recognizing text") {
-          const percent = Math.round((message.progress || 0) * 100);
-          const status = $("#ocrStatus");
-
-          if (status) {
-            status.textContent = `🔍 قراءة التاريخ... ${percent}%`;
-          }
-        }
-      }
-    }),
-
-    new Promise((_, reject) => {
-      setTimeout(() => reject(new Error("OCR timeout")), timeout);
-    })
-  ]);
-}
 
 // =====================================================
-// إنشاء صور OCR
+// تحديد منطقة التاريخ
 // =====================================================
 
-async function createOCRImages(file) {
-  const original = await fileToImage(file);
-  const results = [];
+function setupCropSelection(
+  modal,
+  imageUrl
+) {
 
-  // الصورة كاملة + مناطق إضافية لأن EXP قد يكون في أي مكان
-  results.push(processCrop(original, 0.03, 0.05, 0.94, 0.90));
-  results.push(processCrop(original, 0.03, 0.20, 0.94, 0.55));
-  results.push(processCrop(original, 0.03, 0.40, 0.94, 0.55));
-  results.push(processCrop(original, 0.03, 0.55, 0.94, 0.40));
+  const area =
+    modal.querySelector(
+      "#cropArea"
+    );
 
-  return results;
-}
 
-// =====================================================
-// تحويل الملف إلى Image
-// =====================================================
+  const img =
+    modal.querySelector(
+      "#ocrSourceImage"
+    );
 
-function fileToImage(file) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
 
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve(img);
+  const box =
+    modal.querySelector(
+      "#selectionBox"
+    );
+
+
+  let startX = 0;
+  let startY = 0;
+
+  let selecting = false;
+
+
+  area.addEventListener(
+    "pointerdown",
+    e => {
+
+      selecting = true;
+
+      const r =
+        area.getBoundingClientRect();
+
+
+      startX =
+        e.clientX -
+        r.left;
+
+      startY =
+        e.clientY -
+        r.top;
+
+
+      box.style.display =
+        "block";
+
+
+      box.style.left =
+        `${startX}px`;
+
+      box.style.top =
+        `${startY}px`;
+
+      box.style.width =
+        "1px";
+
+      box.style.height =
+        "1px";
+
+
+      area.setPointerCapture(
+        e.pointerId
+      );
+    }
+  );
+
+
+  area.addEventListener(
+    "pointermove",
+    e => {
+
+      if (!selecting) return;
+
+
+      const r =
+        area.getBoundingClientRect();
+
+
+      let x =
+        e.clientX -
+        r.left;
+
+      let y =
+        e.clientY -
+        r.top;
+
+
+      x =
+        Math.max(
+          0,
+          Math.min(
+            r.width,
+            x
+          )
+        );
+
+
+      y =
+        Math.max(
+          0,
+          Math.min(
+            r.height,
+            y
+          )
+        );
+
+
+      const left =
+        Math.min(
+          startX,
+          x
+        );
+
+      const top =
+        Math.min(
+          startY,
+          y
+        );
+
+
+      const width =
+        Math.abs(
+          x -
+          startX
+        );
+
+
+      const height =
+        Math.abs(
+          y -
+          startY
+        );
+
+
+      box.style.left =
+        `${left}px`;
+
+      box.style.top =
+        `${top}px`;
+
+      box.style.width =
+        `${width}px`;
+
+      box.style.height =
+        `${height}px`;
+    }
+  );
+
+
+  area.addEventListener(
+    "pointerup",
+    () => {
+
+      selecting =
+        false;
+    }
+  );
+
+
+  area.addEventListener(
+    "pointercancel",
+    () => {
+
+      selecting =
+        false;
+    }
+  );
+
+
+  modal
+    .querySelector(
+      "#cropCancel"
+    )
+    .onclick =
+    () => {
+
+      URL.revokeObjectURL(
+        imageUrl
+      );
+
+      modal.remove();
     };
 
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("تعذر تحميل الصورة"));
-    };
 
-    img.src = url;
-  });
+  modal
+    .querySelector(
+      "#cropRead"
+    )
+    .onclick =
+    async () => {
+
+      const boxRect =
+        box.getBoundingClientRect();
+
+
+      const areaRect =
+        area.getBoundingClientRect();
+
+
+      if (
+        boxRect.width < 15 ||
+        boxRect.height < 10
+      ) {
+
+        alert(
+          "حدد سطر EXP / E أولاً."
+        );
+
+        return;
+      }
+
+
+      const result =
+        await cropSelectedImage(
+          img,
+          area,
+          box
+        );
+
+
+      modal.remove();
+
+
+      await runOCROnSelectedImage(
+        result
+      );
+
+
+      URL.revokeObjectURL(
+        imageUrl
+      );
+    };
 }
 
+
 // =====================================================
-// معالجة جزء من الصورة
+// قص المنطقة المحددة
 // =====================================================
 
-function processCrop(img, x, y, width, height) {
-  const sx = Math.floor(img.width * x);
-  const sy = Math.floor(img.height * y);
-  const sw = Math.floor(img.width * width);
-  const sh = Math.floor(img.height * height);
+async function cropSelectedImage(
+  img,
+  area,
+  box
+) {
 
-  const maxWidth = 1600;
-  const scale = Math.min(5, maxWidth / sw);
+  await new Promise(
+    resolve => {
 
-  const canvas = document.createElement("canvas");
+      if (
+        img.complete
+      ) {
+        resolve();
+      } else {
+        img.onload =
+          resolve;
+      }
+    }
+  );
 
-  canvas.width = Math.max(800, Math.floor(sw * scale));
-  canvas.height = Math.max(500, Math.floor(sh * scale));
 
-  const ctx = canvas.getContext("2d", {
-    willReadFrequently: true
-  });
+  const areaRect =
+    area.getBoundingClientRect();
 
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const boxRect =
+    box.getBoundingClientRect();
+
+
+  const sx =
+    (boxRect.left -
+      areaRect.left) /
+    img.clientWidth;
+
+
+  const sy =
+    (boxRect.top -
+      areaRect.top) /
+    img.clientHeight;
+
+
+  const sw =
+    boxRect.width /
+    img.clientWidth;
+
+
+  const sh =
+    boxRect.height /
+    img.clientHeight;
+
+
+  const naturalW =
+    img.naturalWidth;
+
+
+  const naturalH =
+    img.naturalHeight;
+
+
+  const sourceX =
+    Math.max(
+      0,
+      Math.floor(
+        sx *
+        naturalW
+      )
+    );
+
+
+  const sourceY =
+    Math.max(
+      0,
+      Math.floor(
+        sy *
+        naturalH
+      )
+    );
+
+
+  const sourceW =
+    Math.min(
+      naturalW -
+        sourceX,
+      Math.floor(
+        sw *
+        naturalW
+      )
+    );
+
+
+  const sourceH =
+    Math.min(
+      naturalH -
+        sourceY,
+      Math.floor(
+        sh *
+        naturalH
+      )
+    );
+
+
+  const scale =
+    Math.max(
+      5,
+      1600 /
+      sourceW
+    );
+
+
+  const canvas =
+    document.createElement(
+      "canvas"
+    );
+
+
+  canvas.width =
+    Math.floor(
+      sourceW *
+      scale
+    );
+
+
+  canvas.height =
+    Math.floor(
+      sourceH *
+      scale
+    );
+
+
+  const ctx =
+    canvas.getContext(
+      "2d"
+    );
+
 
   ctx.drawImage(
     img,
-    sx,
-    sy,
-    sw,
-    sh,
+    sourceX,
+    sourceY,
+    sourceW,
+    sourceH,
     0,
     0,
     canvas.width,
     canvas.height
   );
 
-  improveCanvas(ctx, canvas.width, canvas.height);
+
+  enhanceCanvas(
+    ctx,
+    canvas.width,
+    canvas.height
+  );
+
 
   return canvas;
 }
 
+
 // =====================================================
-// تحسين الصورة
+// تحسين صورة OCR
 // =====================================================
 
-function improveCanvas(ctx, width, height) {
-  const imageData = ctx.getImageData(0, 0, width, height);
-  const data = imageData.data;
+function enhanceCanvas(
+  ctx,
+  width,
+  height
+) {
 
-  for (let i = 0; i < data.length; i += 4) {
-    const r = data[i];
-    const g = data[i + 1];
-    const b = data[i + 2];
+  const data =
+    ctx.getImageData(
+      0,
+      0,
+      width,
+      height
+    );
 
-    let gray = 0.299 * r + 0.587 * g + 0.114 * b;
 
-    gray = ((gray - 128) * 1.7) + 128;
-    gray = Math.max(0, Math.min(255, gray));
+  const p =
+    data.data;
 
-    data[i] = gray;
-    data[i + 1] = gray;
-    data[i + 2] = gray;
+
+  for (
+    let i = 0;
+    i < p.length;
+    i += 4
+  ) {
+
+    let gray =
+      0.299 * p[i] +
+      0.587 * p[i + 1] +
+      0.114 * p[i + 2];
+
+
+    // تباين قوي
+    gray =
+      (gray - 128) *
+      2.2 +
+      128;
+
+
+    gray =
+      Math.max(
+        0,
+        Math.min(
+          255,
+          gray
+        )
+      );
+
+
+    p[i] =
+      gray;
+
+    p[i + 1] =
+      gray;
+
+    p[i + 2] =
+      gray;
   }
 
-  ctx.putImageData(imageData, 0, 0);
+
+  ctx.putImageData(
+    data,
+    0,
+    0
+  );
 }
 
+
 // =====================================================
-// استخراج تاريخ EXP / E
+// تشغيل OCR
+// =====================================================
+
+async function runOCROnSelectedImage(
+  canvas
+) {
+
+  let status =
+    $("#ocrStatus");
+
+
+  if (status) {
+
+    status.textContent =
+      "🔍 جاري قراءة التاريخ...";
+  }
+
+
+  try {
+
+    const variants =
+      createOCRVariants(
+        canvas
+      );
+
+
+    let found =
+      null;
+
+
+    for (
+      let i = 0;
+      i < variants.length;
+      i++
+    ) {
+
+      if (status) {
+
+        status.textContent =
+          `🔍 تحليل الصورة ${i + 1}/${variants.length}...`;
+      }
+
+
+      const result =
+        await Tesseract.recognize(
+          variants[i],
+          "eng",
+          {
+            tessedit_pageseg_mode:
+              "6"
+          }
+        );
+
+
+      const text =
+        result.data.text;
+
+
+      console.log(
+        "OCR:",
+        text
+      );
+
+
+      found =
+        findExpiry(
+          text
+        );
+
+
+      if (found) {
+        break;
+      }
+    }
+
+
+    if (found) {
+
+      $("#expiry").value =
+        displayExpiry(
+          found
+        );
+
+
+      if (status) {
+
+        status.textContent =
+          `✅ تم التعرف على التاريخ: ${displayExpiry(found)}`;
+      }
+
+    } else {
+
+      if (status) {
+
+        status.textContent =
+          "⚠️ لم أتعرف على التاريخ. حدد سطر EXP / E بشكل أضيق وصوّر أوضح.";
+      }
+    }
+
+  } catch (e) {
+
+    console.error(
+      e
+    );
+
+
+    if (status) {
+
+      status.textContent =
+        "❌ حدث خطأ أثناء قراءة التاريخ.";
+    }
+  }
+}
+
+
+// =====================================================
+// نسخ OCR متعددة
+// =====================================================
+
+function createOCRVariants(
+  canvas
+) {
+
+  const variants =
+    [];
+
+
+  variants.push(
+    canvas
+  );
+
+
+  // نسخة مع عكس الألوان
+
+  const inverted =
+    document.createElement(
+      "canvas"
+    );
+
+
+  inverted.width =
+    canvas.width;
+
+  inverted.height =
+    canvas.height;
+
+
+  const ctx =
+    inverted.getContext(
+      "2d"
+    );
+
+
+  ctx.drawImage(
+    canvas,
+    0,
+    0
+  );
+
+
+  const data =
+    ctx.getImageData(
+      0,
+      0,
+      inverted.width,
+      inverted.height
+    );
+
+
+  for (
+    let i = 0;
+    i < data.data.length;
+    i += 4
+  ) {
+
+    data.data[i] =
+      255 -
+      data.data[i];
+
+    data.data[i + 1] =
+      255 -
+      data.data[i + 1];
+
+    data.data[i + 2] =
+      255 -
+      data.data[i + 2];
+  }
+
+
+  ctx.putImageData(
+    data,
+    0,
+    0
+  );
+
+
+  variants.push(
+    inverted
+  );
+
+
+  return variants;
+}
+
+
+// =====================================================
+// استخراج التاريخ من OCR
 // =====================================================
 
 function findExpiry(text) {
-  if (!text) {
-    return null;
-  }
 
-  let value = normalizeOCRText(text);
+  let value =
+    cleanDateText(
+      text
+    ).toUpperCase();
 
-  console.log("OCR CLEAN TEXT:", value);
 
-  // نحول EXPIRY DATE إلى EXP فقط لتسهيل المطابقة
-  value = value
-    .replace(/\bEXPIRY\s+DATE\b/gi, "EXP")
-    .replace(/\bEXPIRY\b/gi, "EXP")
-    .replace(/\bEXP\s+DATE\b/gi, "EXP")
-    .replace(/\s*([\/.\-:])\s*/g, "$1")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  let match;
-
-  // ---------------------------------------------------
-  // EXP 19/02/2027
-  // EXP 19-02-27
-  // EXP 19.02.2027
-  // E: 19/02/2027
-  // ---------------------------------------------------
-  match = value.match(
-    /\b(?:EXP|EX|E)\s*:?\s*(\d{1,4})[\/.\-](\d{1,2})[\/.\-](\d{1,4})\b/i
+  console.log(
+    "CLEAN OCR:",
+    value
   );
 
-  if (match) {
-    return parseFlexibleDate(match[1], match[2], match[3]);
-  }
 
-  // ---------------------------------------------------
-  // EXP 19 02 2027
-  // E 19 02 27
-  // ---------------------------------------------------
-  match = value.match(
-    /\b(?:EXP|EX|E)\s*:?\s*(\d{1,4})\s+(\d{1,2})\s+(\d{1,4})\b/i
-  );
+  let m;
 
-  if (match) {
-    return parseFlexibleDate(match[1], match[2], match[3]);
-  }
 
-  // ---------------------------------------------------
-  // E 04/2025
-  // E: 06.2015
-  // EXP 04-2025
-  // ---------------------------------------------------
-  match = value.match(
-    /\b(?:EXP|EX|E)\s*:?\s*(\d{1,2})[\/.\-](20\d{2})\b/i
-  );
+  // ---------------------------------------------
+  // EXP 09/2028
+  // ---------------------------------------------
 
-  if (match) {
-    return makeDate(match[2], match[1], 1);
-  }
-
-  // ---------------------------------------------------
-  // إذا كان OCR قرأ حرفًا واحدًا بدل EXP/E،
-  // لا نبحث داخل PROD/MFG/MFD حتى لا نأخذ تاريخ الإنتاج.
-  // ---------------------------------------------------
-  const lines = String(text).toUpperCase().split(/\r?\n/);
-
-  for (const rawLine of lines) {
-    const line = normalizeOCRText(rawLine);
-
-    if (!line) continue;
-
-    if (/^\s*(?:PROD|PRODUCTION|MFG|MFD|MANUFACT|MANUFACTURING)\b/i.test(line)) {
-      continue;
-    }
-
-    match = line.match(
-      /^\s*[A-Z]\s*:?\s*(\d{1,4})[\/.\-](\d{1,2})[\/.\-](\d{1,4})\b/i
+  m =
+    value.match(
+      /\b(?:EXP|EXPIRY|EX|E)\s*[:\-]?\s*(0?[1-9]|1[0-2])\s*[\/.\-]\s*(20\d{2})\b/
     );
 
-    if (match) {
-      const date = parseFlexibleDate(match[1], match[2], match[3]);
 
-      if (date) {
-        return date;
-      }
+  if (m) {
+
+    return `${m[2]}-${String(m[1]).padStart(2, "0")}-01`;
+  }
+
+
+  // ---------------------------------------------
+  // EXP 19/02/27
+  // ---------------------------------------------
+
+  m =
+    value.match(
+      /\b(?:EXP|EXPIRY|EX|E)\s*[:\-]?\s*(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{2,4})\b/
+    );
+
+
+  if (m) {
+
+    let y =
+      Number(m[3]);
+
+    if (
+      String(m[3]).length === 2
+    ) {
+      y += 2000;
     }
+
+
+    return makeDate(
+      y,
+      m[2],
+      m[1]
+    );
   }
 
-  // ---------------------------------------------------
-  // محاولة أخيرة: EXP/E قريب من التاريخ
-  // ---------------------------------------------------
-  match = value.match(
-    /\b(?:EXP|EX|E)\b.{0,15}?\b(\d{1,4})[\/.\-](\d{1,2})[\/.\-](\d{1,4})\b/i
-  );
 
-  if (match) {
-    return parseFlexibleDate(match[1], match[2], match[3]);
+  // ---------------------------------------------
+  // EXP 19 02 27
+  // ---------------------------------------------
+
+  m =
+    value.match(
+      /\b(?:EXP|EXPIRY|EX|E)\s*[:\-]?\s*(\d{1,2})\s+(\d{1,2})\s+(\d{2,4})\b/
+    );
+
+
+  if (m) {
+
+    let y =
+      Number(m[3]);
+
+    if (
+      String(m[3]).length === 2
+    ) {
+      y += 2000;
+    }
+
+
+    return makeDate(
+      y,
+      m[2],
+      m[1]
+    );
   }
 
-  return null;
-}
 
-// =====================================================
-// تنظيف OCR
-// مهم: لا نستبدل I/L بـ 1 بشكل عام لأن ذلك يكسر كلمة EXPIRY.
-// =====================================================
+  // ---------------------------------------------
+  // MM/YYYY
+  // ---------------------------------------------
 
-function normalizeOCRText(text) {
-  return String(text)
-    .toUpperCase()
-    .replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d))
-    .replace(/[Oo]/g, "0")
-    .replace(/S/g, "5")
-    .replace(/Z/g, "2")
-    .replace(/[^\w\s\/.\-:]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
+  m =
+    value.match(
+      /\b(0?[1-9]|1[0-2])\s*[\/.\-]\s*(20\d{2})\b/
+    );
 
-// =====================================================
-// قراءة التاريخ مهما كان ترتيبه
-// DD/MM/YYYY
-// YYYY/MM/DD
-// DD/MM/YY
-// =====================================================
 
-function parseFlexibleDate(a, b, c) {
-  const x = Number(a);
-  const y = Number(b);
-  const z = Number(c);
+  if (m) {
 
-  // YYYY/MM/DD
-  if (x >= 2000 && x <= 2099) {
-    return makeDate(x, y, z);
+    return `${m[2]}-${String(m[1]).padStart(2, "0")}-01`;
   }
 
+
+  // ---------------------------------------------
   // DD/MM/YYYY
-  if (z >= 2000 && z <= 2099) {
-    return convertDateParts(x, y, z);
+  // ---------------------------------------------
+
+  m =
+    value.match(
+      /\b(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{2,4})\b/
+    );
+
+
+  if (m) {
+
+    let y =
+      Number(m[3]);
+
+    if (
+      String(m[3]).length === 2
+    ) {
+      y += 2000;
+    }
+
+
+    return makeDate(
+      y,
+      m[2],
+      m[1]
+    );
   }
 
-  // DD/MM/YY
-  if (String(c).length === 2) {
-    return convertDateParts(x, y, z);
+
+  // ---------------------------------------------
+  // DD MM YY
+  // ---------------------------------------------
+
+  m =
+    value.match(
+      /\b(\d{1,2})\s+(\d{1,2})\s+(\d{2,4})\b/
+    );
+
+
+  if (m) {
+
+    let y =
+      Number(m[3]);
+
+    if (
+      String(m[3]).length === 2
+    ) {
+      y += 2000;
+    }
+
+
+    return makeDate(
+      y,
+      m[2],
+      m[1]
+    );
   }
+
 
   return null;
 }
 
-// =====================================================
-// تحويل DD MM YY
-// =====================================================
-
-function convertDateParts(day, month, year) {
-  let y = Number(year);
-
-  if (String(year).length === 2) {
-    y = 2000 + y;
-  }
-
-  return makeDate(y, month, day);
-}
-
-// =====================================================
-// إنشاء تاريخ صحيح
-// =====================================================
-
-function makeDate(year, month, day) {
-  year = Number(year);
-  month = Number(month);
-  day = Number(day);
-
-  if (
-    year < 2000 ||
-    year > 2099 ||
-    month < 1 ||
-    month > 12 ||
-    day < 1 ||
-    day > 31
-  ) {
-    return null;
-  }
-
-  const date = new Date(year, month - 1, day);
-
-  if (
-    date.getFullYear() !== year ||
-    date.getMonth() !== month - 1 ||
-    date.getDate() !== day
-  ) {
-    return null;
-  }
-
-  return (
-    `${year}-` +
-    `${String(month).padStart(2, "0")}-` +
-    `${String(day).padStart(2, "0")}`
-  );
-}
-
-// =====================================================
-// تنسيق التاريخ للعرض
-// =====================================================
-
-function formatDateArabic(date) {
-  if (!date) {
-    return "";
-  }
-
-  const parts = date.split("-");
-
-  if (parts.length !== 3) {
-    return date;
-  }
-
-  return `${parts[2]}/${parts[1]}/${parts[0]}`;
-}
 
 // =====================================================
 // الطباعة
@@ -1505,401 +2035,127 @@ if ($("#printBtn")) {
   $("#printBtn")
     .addEventListener(
       "click",
-      printReport
-    );
-}
-
-
-function printReport() {
-
-  const rows =
-    products.map(p => `
-
-      <tr>
-
-        <td>
-          ${esc(p.name)}
-        </td>
-
-        <td>
-          ${p.quantity}
-        </td>
-
-        <td>
-          ${p.expiry_date}
-        </td>
-
-        <td>
-          ${esc(p.barcode || "")}
-        </td>
-
-        <td>
-          ${esc(p.notes || "")}
-        </td>
-
-      </tr>
-
-    `).join("");
-
-
-  const win =
-    window.open(
-      "",
-      "_blank"
-    );
-
-
-  if (!win) {
-
-    alert(
-      "اسمح بالنوافذ المنبثقة للطباعة."
-    );
-
-    return;
-  }
-
-
-  win.document.write(`
-
-    <!doctype html>
-
-    <html
-      lang="ar"
-      dir="rtl">
-
-    <head>
-
-      <meta charset="utf-8">
-
-      <title>
-        تقرير فحص الصلاحية
-      </title>
-
-      <style>
-
-        body {
-          font-family: Arial;
-          padding: 30px;
-        }
-
-        h1 {
-          text-align: center;
-        }
-
-        table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-top: 25px;
-        }
-
-        th,
-        td {
-          border: 1px solid #999;
-          padding: 10px;
-          text-align: center;
-        }
-
-        th {
-          background: #eee;
-        }
-
-      </style>
-
-    </head>
-
-    <body>
-
-      <h1>
-        تقرير المنتجات — فحص الصلاحية
-      </h1>
-
-      <table>
-
-        <tr>
-
-          <th>
-            المنتج
-          </th>
-
-          <th>
-            الكمية
-          </th>
-
-          <th>
-            تاريخ الانتهاء
-          </th>
-
-          <th>
-            الباركود
-          </th>
-
-          <th>
-            الملاحظات
-          </th>
-
-        </tr>
-
-        ${rows}
-
-      </table>
-
-      <script>
-
-        window.onload =
-          function() {
-            window.print();
-          };
-
-      <\/script>
-
-    </body>
-
-    </html>
-  `);
-
-
-  win.document.close();
-}
-
-
-// =====================================================
-// التنبيهات
-// =====================================================
-
-if ($("#notifyBtn")) {
-
-  $("#notifyBtn")
-    .addEventListener(
-      "click",
-      async () => {
-
-        if (
-          !("Notification" in window)
-        ) {
-
-          alert(
-            "المتصفح لا يدعم التنبيهات."
-          );
-
-          return;
-        }
-
-
-        const permission =
-          await Notification
-            .requestPermission();
-
-
-        if (
-          permission ===
-          "granted"
-        ) {
-
-          new Notification(
-            "فحص الصلاحية",
-            {
-              body:
-                "تم تفعيل تنبيهات المنتجات."
-            }
-          );
-        }
-      }
-    );
-}
-
-
-// =====================================================
-// تغيير اللغة
-// =====================================================
-
-if ($("#langBtn")) {
-
-  $("#langBtn")
-    .addEventListener(
-      "click",
       () => {
 
-        currentLang =
-          currentLang === "ar"
-            ? "en"
-            : "ar";
+        const win =
+          window.open(
+            "",
+            "_blank"
+          );
 
-        applyLanguage();
+
+        const rows =
+          products.map(p => `
+
+            <tr>
+
+              <td>
+                ${esc(p.name)}
+              </td>
+
+              <td>
+                ${p.quantity}
+              </td>
+
+              <td>
+                ${displayExpiry(p.expiry_date)}
+              </td>
+
+              <td>
+                ${esc(p.barcode || "")}
+              </td>
+
+              <td>
+                ${esc(p.notes || "")}
+              </td>
+
+            </tr>
+
+          `).join("");
+
+
+        win.document.write(`
+
+          <html
+            lang="ar"
+            dir="rtl">
+
+          <head>
+
+            <meta charset="utf-8">
+
+            <title>
+              تقرير فحص الصلاحية
+            </title>
+
+            <style>
+
+              body {
+                font-family:Arial;
+                padding:30px;
+              }
+
+              h1 {
+                text-align:center;
+              }
+
+              table {
+                width:100%;
+                border-collapse:collapse;
+              }
+
+              th,
+              td {
+                border:1px solid #999;
+                padding:9px;
+                text-align:center;
+              }
+
+            </style>
+
+          </head>
+
+          <body>
+
+            <h1>
+              تقرير المنتجات — فحص الصلاحية
+            </h1>
+
+            <table>
+
+              <tr>
+
+                <th>المنتج</th>
+                <th>الكمية</th>
+                <th>تاريخ الانتهاء</th>
+                <th>الباركود</th>
+                <th>الملاحظات</th>
+
+              </tr>
+
+              ${rows}
+
+            </table>
+
+            <script>
+              window.onload = function() {
+                window.print();
+              };
+            <\/script>
+
+          </body>
+
+          </html>
+        `);
+
+        win.document.close();
       }
     );
 }
 
 
-function applyLanguage() {
-
-  const t =
-    T[currentLang];
-
-
-  document.documentElement
-    .lang =
-    currentLang;
-
-
-  document.documentElement
-    .dir =
-    currentLang === "ar"
-      ? "rtl"
-      : "ltr";
-
-
-  setText(
-    "#subtitle",
-    t.subtitle
-  );
-
-  setText(
-    "#totalLabel",
-    t.total
-  );
-
-  setText(
-    "#soonLabel",
-    t.soon
-  );
-
-  setText(
-    "#expiredLabel",
-    t.expired
-  );
-
-  setText(
-    "#qtyLabel",
-    t.qty
-  );
-
-  setText(
-    "#addTitle",
-    t.add
-  );
-
-  setText(
-    "#nameLabel",
-    t.name
-  );
-
-  setText(
-    "#quantityLabel",
-    t.quantity
-  );
-
-  setText(
-    "#expiryLabel",
-    t.expiry
-  );
-
-  setText(
-    "#barcodeLabel",
-    t.barcode
-  );
-
-  setText(
-    "#imageLabel",
-    t.image
-  );
-
-  setText(
-    "#notesLabel",
-    t.notes
-  );
-
-  setText(
-    "#saveBtn",
-    t.save
-  );
-
-  setText(
-    "#resetBtn",
-    t.reset
-  );
-
-  setText(
-    "#productsTitle",
-    t.products
-  );
-
-
-  if ($("#search")) {
-
-    $("#search")
-      .placeholder =
-      t.search;
-  }
-
-
-  setText(
-    "#printBtn",
-    t.print
-  );
-
-  setText(
-    "#scanBtn",
-    t.scan
-  );
-
-  setText(
-    "#scannerTitle",
-    t.scanTitle
-  );
-
-  setText(
-    "#ocrBtn",
-    t.ocr
-  );
-
-
-  if ($("#notifyBtn")) {
-
-    $("#notifyBtn")
-      .textContent =
-      currentLang === "ar"
-        ? "🔔 التنبيهات"
-        : "🔔 Notifications";
-  }
-
-
-  if ($("#langBtn")) {
-
-    $("#langBtn")
-      .textContent =
-      currentLang === "ar"
-        ? "English"
-        : "العربية";
-  }
-
-
-  render();
-}
-
-
 // =====================================================
-// تعيين النص
+// تشغيل
 // =====================================================
-
-function setText(
-  selector,
-  text
-) {
-
-  const el =
-    $(selector);
-
-  if (el) {
-    el.textContent =
-      text;
-  }
-}
-
-
-// =====================================================
-// التشغيل
-// =====================================================
-
-applyLanguage();
 
 loadProducts();
