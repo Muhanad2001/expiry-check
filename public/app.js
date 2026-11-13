@@ -2,32 +2,302 @@ const $ = (s) => document.querySelector(s);
 
 let products = [];
 let scanner = null;
-let loading = false;
+let dateStream = null;
+let currentLang = localStorage.getItem("expiryLang") || "ar";
 
 
-/* =========================
-   أدوات عامة
-========================= */
+const T = {
 
-function today() {
-  return new Date().toISOString().slice(0, 10);
+  ar: {
+    title: "فحص الصلاحية",
+    subtitle: "إدارة المنتجات وتواريخ الانتهاء",
+
+    total: "إجمالي المنتجات",
+    soon: "تنتهي خلال 5 أيام",
+    expired: "منتهية",
+    quantity: "إجمالي الكمية",
+
+    add: "إضافة منتج",
+    scan: "📷 مسح Barcode / QR",
+
+    name: "اسم المنتج",
+    namePlaceholder: "مثال: حليب نادك",
+
+    qty: "الكمية",
+
+    expiry: "تاريخ الانتهاء",
+    readDate: "📷 قراءة التاريخ",
+
+    barcode: "الباركود / QR",
+    barcodePlaceholder: "سيتم تعبئته تلقائياً",
+
+    image: "صورة المنتج",
+    notes: "ملاحظات",
+    notesPlaceholder: "اختياري",
+
+    save: "💾 حفظ المنتج",
+    clear: "مسح الحقول",
+
+    products: "المنتجات",
+    search: "بحث بالاسم أو الباركود",
+    print: "🖨️ طباعة",
+
+    scanTitle: "مسح Barcode / QR",
+    scanHint: "وجّه الكاميرا نحو الباركود...",
+
+    dateTitle: "قراءة تاريخ الانتهاء",
+    dateHint: "وجّه الكاميرا نحو تاريخ الانتهاء",
+    readNow: "📸 قراءة التاريخ",
+
+    valid: "صالح",
+    soonStatus: "قريب الانتهاء",
+    expiredStatus: "منتهي",
+
+    found: "تم العثور على المنتج",
+    notFound: "لم يتم العثور على المنتج. أدخل الاسم مرة واحدة.",
+
+    saved: "تم حفظ المنتج بنجاح",
+    updated: "تم تعديل المنتج بنجاح",
+
+    deleteConfirm: "هل تريد حذف المنتج؟",
+
+    cameraError:
+      "تعذر تشغيل الكاميرا. تأكد من السماح للموقع باستخدام الكاميرا.",
+
+    dateNotFound:
+      "لم يتم العثور على تاريخ واضح. حاول تقريب الكاميرا من التاريخ.",
+
+    noProducts:
+      "لا توجد منتجات.",
+
+    today:
+      "ينتهي اليوم",
+
+    tomorrow:
+      "ينتهي غداً"
+  },
+
+
+  en: {
+    title: "Expiry Check",
+    subtitle: "Manage products and expiry dates",
+
+    total: "Total Products",
+    soon: "Expiring Within 5 Days",
+    expired: "Expired",
+    quantity: "Total Quantity",
+
+    add: "Add Product",
+    scan: "📷 Scan Barcode / QR",
+
+    name: "Product Name",
+    namePlaceholder: "Example: Milk",
+
+    qty: "Quantity",
+
+    expiry: "Expiry Date",
+    readDate: "📷 Read Date",
+
+    barcode: "Barcode / QR",
+    barcodePlaceholder: "Automatically filled",
+
+    image: "Product Image",
+    notes: "Notes",
+    notesPlaceholder: "Optional",
+
+    save: "💾 Save Product",
+    clear: "Clear",
+
+    products: "Products",
+    search: "Search by name or barcode",
+    print: "🖨️ Print",
+
+    scanTitle: "Scan Barcode / QR",
+    scanHint: "Point the camera at the barcode...",
+
+    dateTitle: "Read Expiry Date",
+    dateHint: "Point the camera at the expiry date",
+    readNow: "📸 Read Date",
+
+    valid: "Valid",
+    soonStatus: "Expiring Soon",
+    expiredStatus: "Expired",
+
+    found: "Product found",
+    notFound: "Product not found. Enter the name once.",
+
+    saved: "Product saved successfully",
+    updated: "Product updated successfully",
+
+    deleteConfirm: "Delete this product?",
+
+    cameraError:
+      "Unable to start camera. Please allow camera access.",
+
+    dateNotFound:
+      "No clear date found. Move the camera closer.",
+
+    noProducts:
+      "No products.",
+
+    today:
+      "Expires today",
+
+    tomorrow:
+      "Expires tomorrow"
+  }
+};
+
+
+function tr(key) {
+  return T[currentLang][key] || key;
 }
 
 
-function diff(d) {
-  const expiry = new Date(d + "T23:59:59");
-  const now = new Date();
+function applyLanguage() {
+
+  document.documentElement.lang =
+    currentLang;
+
+  document.documentElement.dir =
+    currentLang === "ar"
+      ? "rtl"
+      : "ltr";
+
+
+  $("#languageBtn").textContent =
+    currentLang === "ar"
+      ? "English"
+      : "العربية";
+
+
+  $("#title").textContent =
+    tr("title");
+
+  $("#subtitle").textContent =
+    tr("subtitle");
+
+  $("#totalLabel").textContent =
+    tr("total");
+
+  $("#soonLabel").textContent =
+    tr("soon");
+
+  $("#expiredLabel").textContent =
+    tr("expired");
+
+  $("#qtyLabel").textContent =
+    tr("quantity");
+
+  $("#addTitle").textContent =
+    tr("add");
+
+  $("#scanBtn").textContent =
+    tr("scan");
+
+  $("#nameLabel").textContent =
+    tr("name");
+
+  $("#quantityLabel").textContent =
+    tr("qty");
+
+  $("#expiryLabel").textContent =
+    tr("expiry");
+
+  $("#readDateBtn").textContent =
+    tr("readDate");
+
+  $("#barcodeLabel").textContent =
+    tr("barcode");
+
+  $("#imageLabel").textContent =
+    tr("image");
+
+  $("#notesLabel").textContent =
+    tr("notes");
+
+  $("#saveBtn").textContent =
+    tr("save");
+
+  $("#resetBtn").textContent =
+    tr("clear");
+
+  $("#productsTitle").textContent =
+    tr("products");
+
+  $("#search").placeholder =
+    tr("search");
+
+  $("#printBtn").textContent =
+    tr("print");
+
+  $("#scannerTitle").textContent =
+    tr("scanTitle");
+
+  $("#scanStatus").textContent =
+    tr("scanHint");
+
+  $("#dateScannerTitle").textContent =
+    tr("dateTitle");
+
+  $("#dateStatus").textContent =
+    tr("dateHint");
+
+  $("#captureDateBtn").textContent =
+    tr("readNow");
+
+  $("#name").placeholder =
+    tr("namePlaceholder");
+
+  $("#barcode").placeholder =
+    tr("barcodePlaceholder");
+
+  $("#notes").placeholder =
+    tr("notesPlaceholder");
+
+
+  render();
+}
+
+
+$("#languageBtn").onclick =
+  () => {
+
+    currentLang =
+      currentLang === "ar"
+        ? "en"
+        : "ar";
+
+    localStorage.setItem(
+      "expiryLang",
+      currentLang
+    );
+
+    applyLanguage();
+  };
+
+
+function daysLeft(date) {
+
+  const end =
+    new Date(
+      date + "T23:59:59"
+    );
 
   return Math.ceil(
-    (expiry - now) / 86400000
+    (end - new Date()) /
+    86400000
   );
 }
 
 
-function esc(s) {
-  return String(s ?? "").replace(
+function esc(value) {
+
+  return String(
+    value ?? ""
+  ).replace(
     /[&<>"']/g,
-    (c) => ({
+    c => ({
       "&": "&amp;",
       "<": "&lt;",
       ">": "&gt;",
@@ -38,21 +308,21 @@ function esc(s) {
 }
 
 
-/* =========================
-   تحميل المنتجات
-========================= */
-
-async function load() {
+async function loadProducts() {
 
   try {
 
-    const response = await fetch("/api/products");
+    const response =
+      await fetch(
+        "/api/products"
+      );
 
     if (!response.ok) {
-      throw new Error("فشل تحميل المنتجات");
+      throw new Error();
     }
 
-    products = await response.json();
+    products =
+      await response.json();
 
     render();
 
@@ -60,140 +330,138 @@ async function load() {
 
     console.error(error);
 
-    $("#products").innerHTML = `
-      <div class="alert">
+    $("#products").innerHTML =
+      `<div class="alert">
         ⚠️ تعذر تحميل المنتجات.
-        تأكد من اتصال الموقع بقاعدة البيانات.
-      </div>
-    `;
+      </div>`;
   }
 }
 
 
-/* =========================
-   عرض المنتجات
-========================= */
-
 function render() {
 
-  const q = ($("#search")?.value || "")
-    .trim()
-    .toLowerCase();
+  const q =
+    ($("#search").value || "")
+      .trim()
+      .toLowerCase();
 
 
-  const list = products.filter((p) => {
-
-    const text =
-      `${p.name} ${p.barcode || ""}`.toLowerCase();
-
-    return text.includes(q);
-  });
-
-
-  const soonProducts = products.filter((p) => {
-
-    const d = diff(p.expiry_date);
-
-    return d >= 0 && d <= 5;
-  });
+  const list =
+    products.filter(p =>
+      `${p.name} ${p.barcode || ""}`
+        .toLowerCase()
+        .includes(q)
+    );
 
 
-  const expiredProducts = products.filter((p) => {
+  const soon =
+    products.filter(p => {
 
-    return diff(p.expiry_date) < 0;
-  });
+      const d =
+        daysLeft(
+          p.expiry_date
+        );
+
+      return d >= 0 &&
+             d <= 5;
+    });
+
+
+  const expired =
+    products.filter(p =>
+      daysLeft(
+        p.expiry_date
+      ) < 0
+    );
 
 
   $("#total").textContent =
     products.length;
 
-
   $("#soon").textContent =
-    soonProducts.length;
-
+    soon.length;
 
   $("#expired").textContent =
-    expiredProducts.length;
-
+    expired.length;
 
   $("#qty").textContent =
     products.reduce(
       (sum, p) =>
-        sum + Number(p.quantity || 0),
+        sum +
+        Number(
+          p.quantity || 0
+        ),
       0
     );
 
 
-  /* التنبيهات */
-
   $("#alerts").innerHTML =
-    soonProducts.length
+    soon.map(p => {
 
-      ? soonProducts
-          .map((p) => {
+      const d =
+        daysLeft(
+          p.expiry_date
+        );
 
-            const d = diff(p.expiry_date);
+      let text;
 
-            let message = "";
+      if (d === 0) {
+        text = tr("today");
+      } else if (d === 1) {
+        text = tr("tomorrow");
+      } else {
+        text =
+          currentLang === "ar"
+            ? `ينتهي خلال ${d} أيام`
+            : `Expires in ${d} days`;
+      }
 
-            if (d === 0) {
-              message = "ينتهي اليوم";
-            } else if (d === 1) {
-              message = "ينتهي غداً";
-            } else {
-              message = `ينتهي خلال ${d} أيام`;
-            }
+      return `
+        <div class="alert">
+          ⚠️ <b>${esc(p.name)}</b>
+          — ${text}
+          (${esc(p.expiry_date)})
+        </div>
+      `;
+    }).join("");
 
-            return `
-              <div class="alert">
-                ⚠️
-                <b>${esc(p.name)}</b>
-                —
-                ${message}
-                (${esc(p.expiry_date)})
-              </div>
-            `;
-          })
-          .join("")
-
-      : "";
-
-
-  /* المنتجات */
 
   $("#products").innerHTML =
-    list.map(card).join("")
-    ||
-    "<p>لا توجد منتجات.</p>";
+    list.length
+      ? list.map(productCard).join("")
+      : `<p>${tr("noProducts")}</p>`;
 }
 
 
-/* =========================
-   بطاقة المنتج
-========================= */
+function productCard(p) {
 
-function card(p) {
+  const d =
+    daysLeft(
+      p.expiry_date
+    );
 
-  const d = diff(p.expiry_date);
 
   let cls = "ok";
-  let txt = "صالح";
+  let status = tr("valid");
 
   if (d < 0) {
 
     cls = "expired";
-    txt = "منتهي";
+    status =
+      tr("expiredStatus");
 
   } else if (d <= 5) {
 
     cls = "soon";
-    txt = "قريب الانتهاء";
+    status =
+      tr("soonStatus");
   }
 
 
-  const image = p.image_key
-    ? `/images/${encodeURIComponent(p.image_key)}`
-    : `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Crect width='100%25' height='100%25' fill='%23e8edf3'/%3E%3C/svg%3E`;
+  const image =
+    p.image_key
+      ? `/images/${encodeURIComponent(p.image_key)}`
+      : `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Crect width='100%25' height='100%25' fill='%23e8edf3'/%3E%3C/svg%3E`;
 
 
   return `
@@ -203,13 +471,11 @@ function card(p) {
         src="${image}"
         alt="${esc(p.name)}">
 
-
       <div>
 
         <h3>
           ${esc(p.name)}
         </h3>
-
 
         <div class="meta">
 
@@ -223,7 +489,9 @@ function card(p) {
 
           ${
             p.barcode
-              ? `<span>▣ ${esc(p.barcode)}</span>`
+              ? `<span>
+                  ▣ ${esc(p.barcode)}
+                </span>`
               : ""
           }
 
@@ -231,13 +499,12 @@ function card(p) {
 
       </div>
 
-
       <div>
 
-        <span class="status ${cls}">
-          ${txt}
+        <span
+          class="status ${cls}">
+          ${status}
         </span>
-
 
         <div
           class="actions"
@@ -245,15 +512,18 @@ function card(p) {
 
           <button
             class="secondary"
-            onclick="edit(${p.id})">
-            تعديل
+            onclick="editProduct(${p.id})">
+            ${currentLang === "ar"
+              ? "تعديل"
+              : "Edit"}
           </button>
-
 
           <button
             class="secondary"
-            onclick="del(${p.id})">
-            حذف
+            onclick="deleteProduct(${p.id})">
+            ${currentLang === "ar"
+              ? "حذف"
+              : "Delete"}
           </button>
 
         </div>
@@ -265,68 +535,66 @@ function card(p) {
 }
 
 
-/* =========================
-   حفظ المنتج
-========================= */
+/* حفظ */
 
 $("#productForm").addEventListener(
   "submit",
-  async (e) => {
+  async e => {
 
     e.preventDefault();
 
-    if (loading) return;
 
-    loading = true;
+    const id =
+      $("#id").value;
+
+
+    let imageKey =
+      products.find(
+        p =>
+          String(p.id) ===
+          String(id)
+      )?.image_key ||
+      null;
+
+
+    const file =
+      $("#image").files[0];
+
 
     try {
 
-      const id = $("#id").value;
-
-
-      let image_key =
-        products.find(
-          (p) => String(p.id) === String(id)
-        )?.image_key || null;
-
-
-      const file =
-        $("#image").files[0];
-
-
-      /* رفع الصورة */
-
       if (file) {
 
-        const fd =
+        const form =
           new FormData();
 
-        fd.append("image", file);
+        form.append(
+          "image",
+          file
+        );
 
 
-        const imageResponse =
+        const upload =
           await fetch(
             "/api/images",
             {
               method: "POST",
-              body: fd
+              body: form
             }
           );
 
 
-        if (!imageResponse.ok) {
-          throw new Error(
-            "فشل رفع الصورة"
-          );
+        const data =
+          await upload.json();
+
+
+        if (!upload.ok) {
+          throw new Error();
         }
 
 
-        const imageData =
-          await imageResponse.json();
-
-
-        image_key =
-          imageData.key;
+        imageKey =
+          data.key;
       }
 
 
@@ -336,7 +604,9 @@ $("#productForm").addEventListener(
           $("#name").value.trim(),
 
         quantity:
-          Number($("#quantity").value || 0),
+          Number(
+            $("#quantity").value || 0
+          ),
 
         expiry_date:
           $("#expiry").value,
@@ -347,64 +617,49 @@ $("#productForm").addEventListener(
         notes:
           $("#notes").value.trim(),
 
-        image_key
+        image_key:
+          imageKey
       };
-
-
-      if (!body.name ||
-          !body.expiry_date) {
-
-        alert(
-          "يرجى إدخال اسم المنتج وتاريخ الانتهاء."
-        );
-
-        return;
-      }
-
-
-      const url =
-        id
-          ? `/api/products/${id}`
-          : "/api/products";
-
-
-      const method =
-        id
-          ? "PUT"
-          : "POST";
 
 
       const response =
         await fetch(
-          url,
+          id
+            ? `/api/products/${id}`
+            : "/api/products",
           {
-            method,
+            method:
+              id
+                ? "PUT"
+                : "POST",
+
             headers: {
               "content-type":
                 "application/json"
             },
+
             body:
-              JSON.stringify(body)
+              JSON.stringify(
+                body
+              )
           }
         );
 
 
       if (!response.ok) {
-        throw new Error(
-          "فشل حفظ المنتج"
-        );
+        throw new Error();
       }
 
 
-      reset();
+      resetForm();
 
-      await load();
+      await loadProducts();
 
 
       alert(
         id
-          ? "تم تعديل المنتج بنجاح."
-          : "تم حفظ المنتج بنجاح."
+          ? tr("updated")
+          : tr("saved")
       );
 
     } catch (error) {
@@ -412,106 +667,96 @@ $("#productForm").addEventListener(
       console.error(error);
 
       alert(
-        "حدث خطأ أثناء حفظ المنتج."
+        "حدث خطأ أثناء الحفظ."
       );
-
-    } finally {
-
-      loading = false;
     }
   }
 );
 
 
-/* =========================
-   إعادة الحقول
-========================= */
+function resetForm() {
 
-function reset() {
+  $("#productForm")
+    .reset();
 
-  $("#productForm").reset();
+  $("#id").value =
+    "";
 
-  $("#id").value = "";
+  $("#quantity").value =
+    1;
 
-  $("#quantity").value = 1;
-
-  $("#preview").innerHTML = "";
+  $("#preview").innerHTML =
+    "";
 }
 
 
-/* =========================
-   تعديل المنتج
-========================= */
-
-window.edit = function (id) {
-
-  const p =
-    products.find(
-      (x) => x.id === id
-    );
+$("#resetBtn").onclick =
+  resetForm;
 
 
-  if (!p) return;
+/* تعديل */
+
+window.editProduct =
+  function(id) {
+
+    const p =
+      products.find(
+        x => x.id === id
+      );
+
+    if (!p) return;
 
 
-  $("#id").value =
-    p.id;
+    $("#id").value =
+      p.id;
+
+    $("#name").value =
+      p.name || "";
+
+    $("#quantity").value =
+      p.quantity || 0;
+
+    $("#expiry").value =
+      p.expiry_date || "";
+
+    $("#barcode").value =
+      p.barcode || "";
+
+    $("#notes").value =
+      p.notes || "";
 
 
-  $("#name").value =
-    p.name || "";
+    $("#preview").innerHTML =
+      p.image_key
+        ? `<img
+            src="/images/${encodeURIComponent(p.image_key)}"
+            style="max-width:180px;border-radius:12px;margin-top:10px;">`
+        : "";
 
 
-  $("#quantity").value =
-    p.quantity || 0;
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+  };
 
 
-  $("#expiry").value =
-    p.expiry_date || "";
+/* حذف */
+
+window.deleteProduct =
+  async function(id) {
+
+    if (
+      !confirm(
+        tr("deleteConfirm")
+      )
+    ) {
+      return;
+    }
 
 
-  $("#barcode").value =
-    p.barcode || "";
+    try {
 
-
-  $("#notes").value =
-    p.notes || "";
-
-
-  $("#image").value = "";
-
-
-  $("#preview").innerHTML =
-    p.image_key
-      ? `
-        <img
-          src="/images/${encodeURIComponent(p.image_key)}"
-          style="max-width:180px;border-radius:12px;margin-top:10px;">
-      `
-      : "";
-
-
-  window.scrollTo({
-    top: 0,
-    behavior: "smooth"
-  });
-};
-
-
-/* =========================
-   حذف المنتج
-========================= */
-
-window.del = async function (id) {
-
-  if (!confirm("هل تريد حذف المنتج؟")) {
-    return;
-  }
-
-
-  try {
-
-    const response =
       await fetch(
         `/api/products/${id}`,
         {
@@ -519,50 +764,30 @@ window.del = async function (id) {
         }
       );
 
+      await loadProducts();
 
-    if (!response.ok) {
-      throw new Error(
-        "فشل حذف المنتج"
+    } catch {
+
+      alert(
+        "حدث خطأ أثناء الحذف."
       );
     }
+  };
 
 
-    await load();
-
-  } catch (error) {
-
-    console.error(error);
-
-    alert(
-      "حدث خطأ أثناء حذف المنتج."
-    );
-  }
-};
-
-
-/* =========================
-   الأزرار
-========================= */
-
-$("#resetBtn").onclick =
-  reset;
-
+/* بحث */
 
 $("#search").oninput =
   render;
 
 
-/* =========================
-   معاينة الصورة
-========================= */
+/* صورة */
 
-$("#image").addEventListener(
-  "change",
+$("#image").onchange =
   () => {
 
     const file =
       $("#image").files[0];
-
 
     if (!file) {
 
@@ -574,27 +799,607 @@ $("#image").addEventListener(
 
 
     const url =
-      URL.createObjectURL(file);
+      URL.createObjectURL(
+        file
+      );
 
 
-    $("#preview").innerHTML = `
-      <img
+    $("#preview").innerHTML =
+      `<img
         src="${url}"
-        style="
-          max-width:180px;
-          max-height:180px;
-          object-fit:cover;
-          border-radius:12px;
-          margin-top:10px;
-        ">
-    `;
+        style="max-width:180px;border-radius:12px;margin-top:10px;">`;
+  };
+
+
+/* =================================
+   Barcode / QR
+================================= */
+
+$("#scanBtn").onclick =
+  async () => {
+
+    $("#scanner")
+      .classList
+      .remove("hidden");
+
+
+    $("#scanStatus").textContent =
+      tr("scanHint");
+
+
+    try {
+
+      scanner =
+        new Html5Qrcode(
+          "barcodeReader"
+        );
+
+
+      await scanner.start(
+
+        {
+          facingMode:
+            "environment"
+        },
+
+        {
+          fps: 10,
+
+          qrbox: {
+            width: 280,
+            height: 180
+          }
+        },
+
+        async text => {
+
+          await processBarcode(
+            text
+          );
+        },
+
+        () => {}
+
+      );
+
+    } catch (error) {
+
+      console.error(
+        error
+      );
+
+      alert(
+        tr("cameraError")
+      );
+
+      closeScanner();
+    }
+  };
+
+
+async function processBarcode(
+  code
+) {
+
+  code =
+    String(code)
+      .trim();
+
+
+  $("#barcode").value =
+    code;
+
+
+  /* البحث المحلي */
+
+  let product =
+    products.find(
+      p =>
+        String(
+          p.barcode || ""
+        ).trim() === code
+    );
+
+
+  if (product) {
+
+    await closeScanner();
+
+    editProduct(
+      product.id
+    );
+
+    alert(
+      `${tr("found")}: ${product.name}`
+    );
+
+    return;
   }
-);
 
 
-/* =========================
+  /*
+   البحث في Open Food Facts
+  */
+
+  try {
+
+    const response =
+      await fetch(
+        `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json`
+      );
+
+
+    if (response.ok) {
+
+      const data =
+        await response.json();
+
+
+      if (
+        data.status === 1 &&
+        data.product
+      ) {
+
+        const p =
+          data.product;
+
+
+        const name =
+          p.product_name_ar ||
+          p.product_name ||
+          p.generic_name_ar ||
+          p.generic_name ||
+          "";
+
+
+        if (name) {
+
+          $("#name").value =
+            name;
+
+
+          await closeScanner();
+
+
+          alert(
+            `${tr("found")}: ${name}`
+          );
+
+          return;
+        }
+      }
+    }
+
+  } catch (error) {
+
+    console.log(
+      "Product lookup failed",
+      error
+    );
+  }
+
+
+  await closeScanner();
+
+  alert(
+    tr("notFound")
+  );
+
+  $("#name").focus();
+}
+
+
+async function closeScanner() {
+
+  if (scanner) {
+
+    try {
+      await scanner.stop();
+    } catch {}
+
+    try {
+      await scanner.clear();
+    } catch {}
+  }
+
+
+  scanner =
+    null;
+
+
+  $("#barcodeReader").innerHTML =
+    "";
+
+
+  $("#scanner")
+    .classList
+    .add("hidden");
+}
+
+
+$("#closeScan").onclick =
+  closeScanner;
+
+
+/* =================================
+   OCR تاريخ الانتهاء
+================================= */
+
+$("#readDateBtn").onclick =
+  async () => {
+
+    $("#dateScanner")
+      .classList
+      .remove("hidden");
+
+
+    $("#dateStatus").textContent =
+      tr("dateHint");
+
+
+    try {
+
+      dateStream =
+        await navigator
+          .mediaDevices
+          .getUserMedia({
+
+            video: {
+              facingMode: {
+                ideal:
+                  "environment"
+              }
+            },
+
+            audio: false
+
+          });
+
+
+      $("#dateVideo")
+        .srcObject =
+        dateStream;
+
+    } catch (error) {
+
+      console.error(
+        error
+      );
+
+      alert(
+        tr("cameraError")
+      );
+
+      closeDateScanner();
+    }
+  };
+
+
+$("#captureDateBtn").onclick =
+  async () => {
+
+    $("#dateStatus").textContent =
+      "جاري قراءة التاريخ...";
+
+
+    try {
+
+      const video =
+        $("#dateVideo");
+
+
+      if (
+        !video.videoWidth
+      ) {
+
+        throw new Error();
+      }
+
+
+      const canvas =
+        document.createElement(
+          "canvas"
+        );
+
+
+      canvas.width =
+        video.videoWidth;
+
+
+      canvas.height =
+        video.videoHeight;
+
+
+      const ctx =
+        canvas.getContext(
+          "2d"
+        );
+
+
+      ctx.drawImage(
+        video,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
+
+
+      /*
+       OCR
+      */
+
+      const result =
+        await Tesseract.recognize(
+          canvas,
+          "eng",
+          {
+            logger: data => {
+
+              if (
+                data.status ===
+                "recognizing text"
+              ) {
+
+                const percent =
+                  Math.round(
+                    data.progress *
+                    100
+                  );
+
+                $("#dateStatus")
+                  .textContent =
+                  `Reading ${percent}%`;
+              }
+            }
+          }
+        );
+
+
+      const text =
+        result.data.text;
+
+
+      console.log(
+        "OCR TEXT:",
+        text
+      );
+
+
+      const date =
+        findDate(
+          text
+        );
+
+
+      if (!date) {
+
+        $("#dateStatus")
+          .textContent =
+          tr("dateNotFound");
+
+        alert(
+          tr("dateNotFound")
+        );
+
+        return;
+      }
+
+
+      $("#expiry").value =
+        date;
+
+
+      closeDateScanner();
+
+
+      alert(
+        `${tr("expiry")}: ${date}`
+      );
+
+    } catch (error) {
+
+      console.error(
+        error
+      );
+
+      alert(
+        tr("dateNotFound")
+      );
+    }
+  };
+
+
+function findDate(text) {
+
+  let s =
+    String(text)
+      .replace(/O/g, "0")
+      .replace(/I/g, "1")
+      .replace(/l/g, "1")
+      .replace(/\s+/g, " ");
+
+
+  /* DD/MM/YYYY */
+
+  let m =
+    s.match(
+      /\b(\d{1,2})[\/.\-](\d{1,2})[\/.\-](20\d{2}|19\d{2})\b/
+    );
+
+
+  if (m) {
+
+    return makeDate(
+      m[3],
+      m[2],
+      m[1]
+    );
+  }
+
+
+  /* YYYY/MM/DD */
+
+  m =
+    s.match(
+      /\b(20\d{2}|19\d{2})[\/.\-](\d{1,2})[\/.\-](\d{1,2})\b/
+    );
+
+
+  if (m) {
+
+    return makeDate(
+      m[1],
+      m[2],
+      m[3]
+    );
+  }
+
+
+  /* MM/DD/YYYY */
+
+  m =
+    s.match(
+      /\b(\d{1,2})[\/.\-](\d{1,2})[\/.\-](20\d{2}|19\d{2})\b/
+    );
+
+
+  if (m) {
+
+    /*
+     نفترض DD/MM/YYYY
+     أولاً لأن الاستخدام
+     المحلي أكثر شيوعاً.
+    */
+
+    return makeDate(
+      m[3],
+      m[1],
+      m[2]
+    );
+  }
+
+
+  return null;
+}
+
+
+function makeDate(
+  year,
+  month,
+  day
+) {
+
+  year =
+    Number(year);
+
+  month =
+    Number(month);
+
+  day =
+    Number(day);
+
+
+  const date =
+    new Date(
+      year,
+      month - 1,
+      day
+    );
+
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !==
+      month - 1 ||
+    date.getDate() !== day
+  ) {
+
+    return null;
+  }
+
+
+  return (
+    `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+  );
+}
+
+
+function closeDateScanner() {
+
+  if (dateStream) {
+
+    dateStream
+      .getTracks()
+      .forEach(
+        track =>
+          track.stop()
+      );
+
+    dateStream =
+      null;
+  }
+
+
+  $("#dateVideo")
+    .srcObject =
+    null;
+
+
+  $("#dateScanner")
+    .classList
+    .add("hidden");
+}
+
+
+$("#closeDateScan").onclick =
+  closeDateScanner;
+
+
+/* =================================
+   التنبيهات
+================================= */
+
+$("#notifyBtn").onclick =
+  async () => {
+
+    if (
+      !("Notification" in window)
+    ) {
+
+      alert(
+        "Notifications are not supported."
+      );
+
+      return;
+    }
+
+
+    const permission =
+      await Notification
+        .requestPermission();
+
+
+    if (
+      permission === "granted"
+    ) {
+
+      new Notification(
+        T[currentLang].title,
+        {
+          body:
+            currentLang === "ar"
+              ? "تم تفعيل التنبيهات."
+              : "Notifications enabled."
+        }
+      );
+    }
+  };
+
+
+/* =================================
    الطباعة
-========================= */
+================================= */
 
 $("#printBtn").onclick =
   () => {
@@ -606,39 +1411,33 @@ $("#printBtn").onclick =
       );
 
 
-    if (!w) {
+    if (!w) return;
 
-      alert(
-        "اسمح للنوافذ المنبثقة من الموقع."
-      );
 
-      return;
-    }
+    const rtl =
+      currentLang === "ar";
 
 
     w.document.write(`
-      <!doctype html>
-
       <html
-        lang="ar"
-        dir="rtl">
+        lang="${currentLang}"
+        dir="${rtl ? "rtl" : "ltr"}">
 
       <head>
 
-        <meta charset="utf-8">
+        <meta charset="UTF-8">
 
         <title>
-          تقرير المنتجات
+          ${rtl
+            ? "تقرير المنتجات"
+            : "Product Report"}
         </title>
 
         <style>
 
           body {
-            font-family:
-              Arial,
-              sans-serif;
-
-            padding: 25px;
+            font-family: Arial;
+            padding: 30px;
           }
 
           h1 {
@@ -647,19 +1446,12 @@ $("#printBtn").onclick =
 
           table {
             width: 100%;
-            border-collapse:
-              collapse;
+            border-collapse: collapse;
           }
 
-          th,
-          td {
-            border:
-              1px solid #999;
-
-            padding: 8px;
-
-            text-align:
-              right;
+          th, td {
+            border: 1px solid #999;
+            padding: 10px;
           }
 
         </style>
@@ -669,7 +1461,9 @@ $("#printBtn").onclick =
       <body>
 
         <h1>
-          تقرير المنتجات — فحص الصلاحية
+          ${rtl
+            ? "تقرير المنتجات — فحص الصلاحية"
+            : "Product Report — Expiry Check"}
         </h1>
 
         <table>
@@ -677,61 +1471,52 @@ $("#printBtn").onclick =
           <tr>
 
             <th>
-              المنتج
+              ${rtl ? "المنتج" : "Product"}
             </th>
 
             <th>
-              الكمية
+              ${rtl ? "الكمية" : "Quantity"}
             </th>
 
             <th>
-              تاريخ الانتهاء
+              ${rtl ? "تاريخ الانتهاء" : "Expiry Date"}
             </th>
 
             <th>
-              الباركود
+              ${rtl ? "الباركود" : "Barcode"}
             </th>
 
           </tr>
 
+          ${products.map(p => `
+            <tr>
 
-          ${products
-            .map(
-              (p) => `
-                <tr>
+              <td>
+                ${esc(p.name)}
+              </td>
 
-                  <td>
-                    ${esc(p.name)}
-                  </td>
+              <td>
+                ${esc(p.quantity)}
+              </td>
 
-                  <td>
-                    ${esc(p.quantity)}
-                  </td>
+              <td>
+                ${esc(p.expiry_date)}
+              </td>
 
-                  <td>
-                    ${esc(p.expiry_date)}
-                  </td>
+              <td>
+                ${esc(p.barcode || "")}
+              </td>
 
-                  <td>
-                    ${esc(p.barcode || "")}
-                  </td>
-
-                </tr>
-              `
-            )
-            .join("")}
+            </tr>
+          `).join("")}
 
         </table>
 
-
         <script>
-          window.onload = function () {
-            window.print();
-          };
+          window.onload = () => window.print();
         <\/script>
 
       </body>
-
       </html>
     `);
 
@@ -740,307 +1525,8 @@ $("#printBtn").onclick =
   };
 
 
-/* =========================
-   التنبيهات
-========================= */
+/* تشغيل */
 
-$("#notifyBtn").onclick =
-  async () => {
+applyLanguage();
 
-    if (!("Notification" in window)) {
-
-      alert(
-        "المتصفح لا يدعم التنبيهات."
-      );
-
-      return;
-    }
-
-
-    const permission =
-      await Notification.requestPermission();
-
-
-    if (permission === "granted") {
-
-      new Notification(
-        "فحص الصلاحية",
-        {
-          body:
-            "سيتم عرض تنبيهات المنتجات عند فتح الموقع."
-        }
-      );
-
-    } else {
-
-      alert(
-        "لم يتم السماح بالتنبيهات."
-      );
-    }
-  };
-
-
-/* =========================
-   قارئ Barcode / QR
-========================= */
-
-$("#scanBtn").onclick =
-  async () => {
-
-    if (
-      typeof Html5Qrcode ===
-      "undefined"
-    ) {
-
-      alert(
-        "لم يتم تحميل قارئ الباركود."
-      );
-
-      return;
-    }
-
-
-    $("#scanner")
-      .classList
-      .remove("hidden");
-
-
-    $("#scanStatus").textContent =
-      "جاري تشغيل الكاميرا...";
-
-
-    try {
-
-      scanner =
-        new Html5Qrcode(
-          "video"
-        );
-
-
-      const formats = [
-
-        Html5QrcodeSupportedFormats.QR_CODE,
-
-        Html5QrcodeSupportedFormats.EAN_13,
-
-        Html5QrcodeSupportedFormats.EAN_8,
-
-        Html5QrcodeSupportedFormats.UPC_A,
-
-        Html5QrcodeSupportedFormats.UPC_E,
-
-        Html5QrcodeSupportedFormats.CODE_128,
-
-        Html5QrcodeSupportedFormats.CODE_39
-
-      ];
-
-
-      await scanner.start(
-
-        {
-          facingMode:
-            "environment"
-        },
-
-
-        {
-          fps: 10,
-
-          qrbox: {
-            width: 280,
-            height: 180
-          },
-
-          aspectRatio:
-            1.7777778,
-
-          formatsToSupport:
-            formats
-        },
-
-
-        (decodedText) => {
-
-          handleBarcode(
-            decodedText
-          );
-
-        },
-
-
-        () => {
-
-          /*
-            لا نفعل شيئًا
-            أثناء محاولات القراءة
-          */
-
-        }
-
-      );
-
-
-      $("#scanStatus").textContent =
-        "وجّه الكاميرا نحو الباركود...";
-
-    } catch (error) {
-
-      console.error(
-        "Scanner error:",
-        error
-      );
-
-
-      $("#scanStatus").textContent =
-        "تعذر تشغيل الكاميرا.";
-
-
-      alert(
-        "تعذر تشغيل الكاميرا.\n\n" +
-        "تأكد من السماح للموقع باستخدام الكاميرا."
-      );
-
-
-      await closeScanner();
-    }
-  };
-
-
-/* =========================
-   نتيجة المسح
-========================= */
-
-async function handleBarcode(
-  value
-) {
-
-  if (!value) {
-    return;
-  }
-
-
-  const cleanValue =
-    String(value).trim();
-
-
-  $("#barcode").value =
-    cleanValue;
-
-
-  $("#scanStatus").textContent =
-    "تمت قراءة الباركود: " +
-    cleanValue;
-
-
-  const found =
-    products.find(
-      (p) =>
-        String(
-          p.barcode || ""
-        ).trim() === cleanValue
-    );
-
-
-  if (found) {
-
-    await closeScanner();
-
-
-    edit(found.id);
-
-
-    setTimeout(
-      () => {
-
-        alert(
-          "تم العثور على المنتج:\n" +
-          found.name
-        );
-
-      },
-      200
-    );
-
-    return;
-  }
-
-
-  await closeScanner();
-
-
-  setTimeout(
-    () => {
-
-      alert(
-        "تمت قراءة الباركود:\n" +
-        cleanValue +
-        "\n\n" +
-        "يمكنك الآن إدخال بيانات المنتج ثم الضغط على حفظ."
-      );
-
-    },
-    200
-  );
-}
-
-
-/* =========================
-   إغلاق القارئ
-========================= */
-
-async function closeScanner() {
-
-  try {
-
-    if (scanner) {
-
-      try {
-
-        await scanner.stop();
-
-      } catch (e) {}
-
-      try {
-
-        await scanner.clear();
-
-      } catch (e) {}
-
-    }
-
-  } catch (error) {
-
-    console.error(
-      error
-    );
-
-  }
-
-
-  scanner = null;
-
-
-  $("#video").innerHTML =
-    "";
-
-
-  $("#scanner")
-    .classList
-    .add("hidden");
-
-
-  $("#scanStatus").textContent =
-    "وجّه الكاميرا نحو الباركود...";
-}
-
-
-$("#closeScan").onclick =
-  closeScanner;
-
-
-/* =========================
-   تحميل أولي
-========================= */
-
-load();
+loadProducts();
