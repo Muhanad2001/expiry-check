@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
   <meta name="theme-color" content="#111827">
-  <meta name="apple-mobile-web-app-capable" content="yes">
 
   <title>فحص الصلاحية</title>
 
@@ -14,237 +14,226 @@
 
 <body>
 
-<header>
+<header class="topbar">
   <div>
-    <h1 id="title">فحص الصلاحية</h1>
+    <h1>📦 فحص الصلاحية</h1>
     <p id="subtitle">إدارة المنتجات وتواريخ الانتهاء</p>
   </div>
 
-  <div class="row">
-    <button id="languageBtn" class="ghost">English</button>
+  <div class="header-actions">
+    <button id="langBtn" class="ghost">English</button>
     <button id="notifyBtn" class="ghost">🔔 التنبيهات</button>
   </div>
 </header>
 
-
 <main>
 
-<section class="stats">
+  <!-- الإحصائيات -->
+  <section class="stats">
 
-  <div>
-    <b id="total">0</b>
-    <span id="totalLabel">إجمالي المنتجات</span>
-  </div>
+    <div class="stat-card">
+      <b id="total">0</b>
+      <span id="totalLabel">إجمالي المنتجات</span>
+    </div>
 
-  <div>
-    <b id="soon">0</b>
-    <span id="soonLabel">تنتهي خلال 5 أيام</span>
-  </div>
+    <div class="stat-card">
+      <b id="soon">0</b>
+      <span id="soonLabel">تنتهي خلال 5 أيام</span>
+    </div>
 
-  <div>
-    <b id="expired">0</b>
-    <span id="expiredLabel">منتهية</span>
-  </div>
+    <div class="stat-card">
+      <b id="expired">0</b>
+      <span id="expiredLabel">منتهية</span>
+    </div>
 
-  <div>
-    <b id="qty">0</b>
-    <span id="qtyLabel">إجمالي الكمية</span>
-  </div>
+    <div class="stat-card">
+      <b id="qty">0</b>
+      <span id="qtyLabel">إجمالي الكمية</span>
+    </div>
 
-</section>
-
-
-<section class="card">
-
-  <div class="row between">
-
-    <h2 id="addTitle">
-      إضافة منتج
-    </h2>
-
-    <button
-      id="scanBtn"
-      class="secondary">
-      📷 مسح Barcode / QR
-    </button>
-
-  </div>
+  </section>
 
 
-  <form id="productForm">
+  <!-- إضافة منتج -->
+  <section class="card">
 
-    <input
-      type="hidden"
-      id="id">
+    <div class="row between">
 
+      <h2 id="addTitle">➕ إضافة منتج</h2>
 
-    <div class="grid">
+      <button id="scanBtn" class="secondary">
+        📷 مسح Barcode / QR
+      </button>
 
-      <label>
-
-        <span id="nameLabel">
-          اسم المنتج
-        </span>
-
-        <input
-          id="name"
-          required
-          placeholder="مثال: حليب نادك">
-
-      </label>
+    </div>
 
 
-      <label>
+    <form id="productForm">
 
-        <span id="quantityLabel">
-          الكمية
-        </span>
+      <input type="hidden" id="id">
 
-        <input
-          id="quantity"
-          type="number"
-          min="0"
-          value="1"
-          required>
+      <div class="grid">
 
-      </label>
+        <label>
+          <span id="nameLabel">اسم المنتج</span>
+
+          <input
+            id="name"
+            required
+            placeholder="مثال: حليب نادك">
+        </label>
 
 
-      <label>
+        <label>
+          <span id="quantityLabel">الكمية</span>
 
-        <span id="expiryLabel">
-          تاريخ الانتهاء
-        </span>
+          <input
+            id="quantity"
+            type="number"
+            min="0"
+            value="1"
+            required>
+        </label>
 
-        <div class="row">
+
+        <label>
+          <span id="expiryLabel">تاريخ الانتهاء</span>
 
           <input
             id="expiry"
             type="date"
             required>
-
-          <button
-            id="readDateBtn"
-            type="button"
-            class="secondary">
-            📷 قراءة التاريخ
-          </button>
-
-        </div>
-
-      </label>
+        </label>
 
 
+        <label>
+          <span id="barcodeLabel">الباركود / QR</span>
+
+          <input
+            id="barcode"
+            placeholder="سيظهر تلقائياً عند المسح">
+        </label>
+
+      </div>
+
+
+      <!-- صورة المنتج -->
       <label>
 
-        <span id="barcodeLabel">
-          الباركود / QR
-        </span>
+        <span id="imageLabel">صورة المنتج</span>
 
         <input
-          id="barcode"
-          placeholder="سيتم تعبئته تلقائياً">
+          id="image"
+          type="file"
+          accept="image/*"
+          capture="environment">
 
       </label>
 
+      <div id="preview"></div>
+
+
+      <!-- قراءة تاريخ الانتهاء -->
+      <div class="ocr-box">
+
+        <button
+          type="button"
+          id="ocrBtn"
+          class="secondary">
+
+          🔍 قراءة تاريخ الانتهاء من الصورة
+
+        </button>
+
+        <p id="ocrStatus"></p>
+
+      </div>
+
+
+      <!-- الملاحظات -->
+      <label>
+
+        <span id="notesLabel">ملاحظات</span>
+
+        <textarea
+          id="notes"
+          rows="2"
+          placeholder="اختياري"></textarea>
+
+      </label>
+
+
+      <div class="actions">
+
+        <button
+          class="primary"
+          type="submit"
+          id="saveBtn">
+
+          💾 حفظ المنتج
+
+        </button>
+
+
+        <button
+          class="ghost"
+          type="button"
+          id="resetBtn">
+
+          مسح الحقول
+
+        </button>
+
+      </div>
+
+    </form>
+
+  </section>
+
+
+  <!-- المنتجات -->
+  <section class="card">
+
+    <div class="row between">
+
+      <h2 id="productsTitle">📋 المنتجات</h2>
+
+      <div class="row">
+
+        <input
+          id="search"
+          placeholder="بحث بالاسم أو الباركود">
+
+        <button
+          id="printBtn"
+          class="secondary">
+
+          🖨️ طباعة التقرير
+
+        </button>
+
+      </div>
+
     </div>
 
 
-    <label>
-
-      <span id="imageLabel">
-        صورة المنتج
-      </span>
-
-      <input
-        id="image"
-        type="file"
-        accept="image/*"
-        capture="environment">
-
-    </label>
+    <!-- التنبيهات -->
+    <div id="alerts"></div>
 
 
-    <div id="preview"></div>
-
-
-    <label>
-
-      <span id="notesLabel">
-        ملاحظات
-      </span>
-
-      <textarea
-        id="notes"
-        rows="2"
-        placeholder="اختياري">
-      </textarea>
-
-    </label>
-
-
-    <div class="actions">
-
-      <button
-        type="submit"
-        class="primary"
-        id="saveBtn">
-        💾 حفظ المنتج
-      </button>
-
-      <button
-        type="button"
-        class="ghost"
-        id="resetBtn">
-        مسح الحقول
-      </button>
+    <!-- المنتجات -->
+    <div
+      id="products"
+      class="products">
 
     </div>
 
-  </form>
-
-</section>
-
-
-<section class="card">
-
-  <div class="row between">
-
-    <h2 id="productsTitle">
-      المنتجات
-    </h2>
-
-    <div class="row">
-
-      <input
-        id="search"
-        placeholder="بحث بالاسم أو الباركود">
-
-      <button
-        id="printBtn"
-        class="secondary">
-        🖨️ طباعة
-      </button>
-
-    </div>
-
-  </div>
-
-
-  <div id="alerts"></div>
-
-  <div
-    id="products"
-    class="products">
-  </div>
-
-</section>
+  </section>
 
 </main>
 
 
-<!-- Barcode / QR -->
-
+<!-- نافذة المسح -->
 <div
   id="scanner"
   class="modal hidden">
@@ -254,20 +243,21 @@
     <div class="row between">
 
       <h3 id="scannerTitle">
-        مسح Barcode / QR
+        📷 مسح الباركود / QR
       </h3>
 
-      <button id="closeScan">
+      <button
+        id="closeScan"
+        class="ghost">
+
         ✕
+
       </button>
 
     </div>
 
 
-    <div
-      id="barcodeReader"
-      style="width:100%;">
-    </div>
+    <div id="reader"></div>
 
 
     <p id="scanStatus">
@@ -279,56 +269,15 @@
 </div>
 
 
-<!-- قراءة تاريخ الانتهاء -->
-
-<div
-  id="dateScanner"
-  class="modal hidden">
-
-  <div class="modalbox">
-
-    <div class="row between">
-
-      <h3 id="dateScannerTitle">
-        قراءة تاريخ الانتهاء
-      </h3>
-
-      <button id="closeDateScan">
-        ✕
-      </button>
-
-    </div>
-
-
-    <video
-      id="dateVideo"
-      autoplay
-      muted
-      playsinline
-      style="width:100%;border-radius:12px;">
-    </video>
-
-
-    <p id="dateStatus">
-      وجّه الكاميرا نحو تاريخ الانتهاء
-    </p>
-
-
-    <button
-      id="captureDateBtn"
-      class="primary">
-      📸 قراءة التاريخ
-    </button>
-
-  </div>
-
-</div>
-
-
+<!-- مكتبة الباركود -->
 <script src="https://unpkg.com/html5-qrcode"></script>
 
+
+<!-- مكتبة قراءة النص من الصور -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
+
+<!-- كود الموقع -->
 <script src="/app.js"></script>
 
 </body>
